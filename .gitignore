@@ -9,3 +9,15 @@
 .cxx
 local.properties
 /app/build
+
+# Android Studio uses this project's gradle/ dir as GRADLE_USER_HOME, which drops
+# runtime/cache dirs here. Ignore them; keep only the wrapper + version catalog.
+/gradle/android/
+/gradle/caches/
+/gradle/daemon/
+/gradle/kotlin-profile/
+/gradle/native/
+/gradle/notifications/
+/gradle/jdks/
+/gradle/.tmp/
+/gradle/wrapper/dists/
