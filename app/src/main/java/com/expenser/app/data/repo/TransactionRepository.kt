@@ -1,7 +1,5 @@
 package com.expenser.app.data.repo
 
-import com.expenser.app.data.db.dao.CategorySum
-import com.expenser.app.data.db.dao.MonthSum
 import com.expenser.app.data.db.dao.TransactionDao
 import com.expenser.app.data.db.dao.TransactionListItem
 import com.expenser.app.data.db.entity.TransactionEntity
@@ -16,14 +14,8 @@ class TransactionRepository(
     fun observeByType(type: EntryType): Flow<List<TransactionListItem>> =
         transactionDao.observeByType(type)
 
-    fun observeTotalMinor(type: EntryType): Flow<Long> =
-        transactionDao.observeTotalMinor(type)
-
-    fun observeCategoryTotals(type: EntryType): Flow<List<CategorySum>> =
-        transactionDao.observeCategoryTotals(type)
-
-    fun observeMonthlyTotals(type: EntryType): Flow<List<MonthSum>> =
-        transactionDao.observeMonthlyTotals(type)
+    fun observeAllWithCategory(): Flow<List<TransactionListItem>> =
+        transactionDao.observeAllWithCategory()
 
     /** Create (id == null) or update an existing transaction. */
     suspend fun save(

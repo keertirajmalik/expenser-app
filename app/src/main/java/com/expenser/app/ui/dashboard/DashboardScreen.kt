@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.common.BarChart
 import com.expenser.app.ui.common.DonutChart
+import com.expenser.app.ui.common.MonthSelector
 import com.expenser.app.ui.common.entryTypeColor
 import com.expenser.app.ui.profile.ScreenTopActions
 
@@ -42,6 +43,7 @@ fun DashboardScreen(
     val incomeByCategory by viewModel.incomeByCategory.collectAsStateWithLifecycle()
     val expenseByCategory by viewModel.expenseByCategory.collectAsStateWithLifecycle()
     val investmentByCategory by viewModel.investmentByCategory.collectAsStateWithLifecycle()
+    val month by viewModel.selectedMonth.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -68,6 +70,9 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                MonthSelector(month = month, onChange = viewModel::selectMonth)
+            }
             item {
                 ChartCard("Net worth") {
                     val (nwData, nwColors) = if (netWorth >= 0) {
@@ -99,7 +104,7 @@ fun DashboardScreen(
             item {
                 ChartCard("Expense") {
                     DonutChart(
-                        expenseByCategory.map { it.categoryName to it.totalMinor },
+                        expenseByCategory,
                         baseColor = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -107,7 +112,7 @@ fun DashboardScreen(
             item {
                 ChartCard("Income") {
                     DonutChart(
-                        incomeByCategory.map { it.categoryName to it.totalMinor },
+                        incomeByCategory,
                         baseColor = entryTypeColor(EntryType.Income),
                     )
                 }
@@ -115,7 +120,7 @@ fun DashboardScreen(
             item {
                 ChartCard("Investment") {
                     DonutChart(
-                        investmentByCategory.map { it.categoryName to it.totalMinor },
+                        investmentByCategory,
                         baseColor = entryTypeColor(EntryType.Investment),
                     )
                 }
