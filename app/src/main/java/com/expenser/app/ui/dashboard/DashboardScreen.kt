@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +41,7 @@ fun DashboardScreen(
     val totalExpense by viewModel.totalExpenseMinor.collectAsStateWithLifecycle()
     val totalInvestment by viewModel.totalInvestmentMinor.collectAsStateWithLifecycle()
     val totalIncome by viewModel.totalIncomeMinor.collectAsStateWithLifecycle()
+    val netWorth = totalIncome - totalExpense
 
     Scaffold(
         topBar = {
@@ -69,6 +71,13 @@ fun DashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            StatCard(
+                title = "Net Worth",
+                value = formatMoney(netWorth),
+                icon = Icons.Filled.AccountBalanceWallet,
+                accent = if (netWorth >= 0) entryTypeColor(EntryType.Income) else MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+            )
             StatCard(
                 title = "Total Income",
                 value = formatMoney(totalIncome),
