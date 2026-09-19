@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    // AGP 9 has built-in Kotlin; the kotlin.android plugin is no longer applied.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
