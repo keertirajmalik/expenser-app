@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.data.db.dao.TransactionListItem
 import com.expenser.app.data.db.entity.TransactionEntity
 import com.expenser.app.ui.common.formatMoney
+import com.expenser.app.ui.profile.ProfileAvatarAction
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -46,6 +47,7 @@ private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyy
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseScreen(
+    onProfileClick: () -> Unit,
     viewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory),
 ) {
     val expenses by viewModel.expenses.collectAsStateWithLifecycle()
@@ -67,6 +69,7 @@ fun ExpenseScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Expenses", fontWeight = FontWeight.SemiBold) },
+                actions = { ProfileAvatarAction(onClick = onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),

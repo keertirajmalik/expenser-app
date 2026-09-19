@@ -39,12 +39,15 @@ import androidx.navigation.compose.rememberNavController
 import com.expenser.app.ui.category.CategoryScreen
 import com.expenser.app.ui.dashboard.DashboardScreen
 import com.expenser.app.ui.expense.ExpenseScreen
+import com.expenser.app.ui.profile.ProfileScreen
 
 private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard),
     Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong),
     Categories("categories", "Categories", Icons.Filled.Category),
 }
+
+private const val PROFILE_ROUTE = "profile"
 
 @Composable
 fun ExpenserNavHost() {
@@ -70,14 +73,16 @@ fun ExpenserNavHost() {
             )
         },
     ) { padding ->
+        val openProfile = { navController.navigate(PROFILE_ROUTE) { launchSingleTop = true } }
         NavHost(
             navController = navController,
             startDestination = Destination.Dashboard.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Destination.Dashboard.route) { DashboardScreen() }
-            composable(Destination.Expenses.route) { ExpenseScreen() }
-            composable(Destination.Categories.route) { CategoryScreen() }
+            composable(Destination.Dashboard.route) { DashboardScreen(onProfileClick = openProfile) }
+            composable(Destination.Expenses.route) { ExpenseScreen(onProfileClick = openProfile) }
+            composable(Destination.Categories.route) { CategoryScreen(onProfileClick = openProfile) }
+            composable(PROFILE_ROUTE) { ProfileScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }

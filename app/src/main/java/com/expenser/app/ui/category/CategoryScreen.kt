@@ -23,6 +23,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.font.FontWeight
 import com.expenser.app.ui.common.TypeBadge
 import com.expenser.app.ui.common.entryTypeColor
+import com.expenser.app.ui.profile.ProfileAvatarAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +41,7 @@ import com.expenser.app.data.db.entity.CategoryEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryScreen(
+    onProfileClick: () -> Unit,
     viewModel: CategoryViewModel = viewModel(factory = CategoryViewModel.Factory),
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -60,6 +62,7 @@ fun CategoryScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Categories", fontWeight = FontWeight.SemiBold) },
+                actions = { ProfileAvatarAction(onClick = onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),

@@ -24,10 +24,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.ui.common.StatCard
 import com.expenser.app.ui.common.formatMoney
+import com.expenser.app.ui.profile.ProfileAvatarAction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onProfileClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
 ) {
     val totalExpense by viewModel.totalExpenseMinor.collectAsStateWithLifecycle()
@@ -45,6 +47,7 @@ fun DashboardScreen(
                         )
                     }
                 },
+                actions = { ProfileAvatarAction(onClick = onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),

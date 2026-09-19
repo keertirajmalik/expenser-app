@@ -6,6 +6,7 @@ import com.expenser.app.data.db.ExpenserDatabase
 import com.expenser.app.data.db.entity.UserEntity
 import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.TransactionRepository
+import com.expenser.app.data.repo.UserRepository
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
@@ -42,4 +43,5 @@ class AppContainer(context: Context) {
 
     val categoryRepository = CategoryRepository(db.categoryDao(), ::currentUserId)
     val transactionRepository = TransactionRepository(db.transactionDao(), ::currentUserId)
+    val userRepository = UserRepository(db.userDao(), ::currentUserId)
 }
