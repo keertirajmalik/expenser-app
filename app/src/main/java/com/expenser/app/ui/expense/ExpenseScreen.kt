@@ -17,8 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -28,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,8 +40,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.data.db.dao.TransactionListItem
 import com.expenser.app.data.db.entity.TransactionEntity
+import com.expenser.app.ui.common.SwipeToDeleteBox
 import com.expenser.app.ui.common.TransactionSheet
 import com.expenser.app.ui.common.formatMoney
+import kotlinx.coroutines.launch
 import com.expenser.app.ui.profile.ScreenTopActions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -57,6 +62,7 @@ fun ExpenseScreen(
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var sheetTarget by remember { mutableStateOf<SheetTarget?>(null) }
 
@@ -91,7 +97,20 @@ fun ExpenseScreen(
             } else {
                 LazyColumn(contentPadding = PaddingValues(16.dp)) {
                     items(expenses, key = { it.transaction.id }) { item ->
-                        ExpenseRow(item) { sheetTarget = SheetTarget(item.transaction) }
+                        SwipeToDeleteBox(onDelete = {
+                            val deleted = item.transaction
+                            viewModel.delete(deleted)
+                            scope.launch {
+                                val res = snackbarHostState.showSnackbar(
+                                    message = "Expense deleted",
+                                    actionLabel = "Undo",
+                                    duration = SnackbarDuration.Short,
+                                )
+                                if (res == SnackbarResult.ActionPerformed) viewModel.restore(deleted)
+                            }
+                        }) {
+                            ExpenseRow(item) { sheetTarget = SheetTarget(item.transaction) }
+                        }
                     }
                 }
             }

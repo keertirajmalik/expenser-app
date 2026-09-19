@@ -60,6 +60,10 @@ class InvestmentViewModel(
         viewModelScope.launch { transactions.delete(transaction) }
     }
 
+    fun restore(transaction: TransactionEntity) {
+        viewModelScope.launch { transactions.restore(transaction) }
+    }
+
     fun consumeMessage() { _message.value = null }
 
     companion object {

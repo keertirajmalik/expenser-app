@@ -50,4 +50,7 @@ class TransactionRepository(
     }
 
     suspend fun delete(transaction: TransactionEntity) = transactionDao.delete(transaction)
+
+    /** Re-insert a previously deleted transaction (for undo). */
+    suspend fun restore(transaction: TransactionEntity) = transactionDao.upsert(transaction)
 }
