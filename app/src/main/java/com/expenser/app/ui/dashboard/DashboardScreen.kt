@@ -2,18 +2,14 @@ package com.expenser.app.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Payments
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -26,9 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.data.model.EntryType
-import com.expenser.app.ui.common.StatCard
+import com.expenser.app.ui.common.BarChart
+import com.expenser.app.ui.common.DonutChart
 import com.expenser.app.ui.common.entryTypeColor
-import com.expenser.app.ui.common.formatMoney
 import com.expenser.app.ui.profile.ScreenTopActions
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,9 +35,13 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
 ) {
     val totalExpense by viewModel.totalExpenseMinor.collectAsStateWithLifecycle()
-    val totalInvestment by viewModel.totalInvestmentMinor.collectAsStateWithLifecycle()
     val totalIncome by viewModel.totalIncomeMinor.collectAsStateWithLifecycle()
+    val totalInvestment by viewModel.totalInvestmentMinor.collectAsStateWithLifecycle()
     val netWorth = totalIncome - totalExpense
+
+    val incomeByCategory by viewModel.incomeByCategory.collectAsStateWithLifecycle()
+    val expenseByCategory by viewModel.expenseByCategory.collectAsStateWithLifecycle()
+    val investmentByCategory by viewModel.investmentByCategory.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -63,42 +63,76 @@ fun DashboardScreen(
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatCard(
-                title = "Net Worth",
-                value = formatMoney(netWorth),
-                icon = Icons.Filled.AccountBalanceWallet,
-                accent = if (netWorth >= 0) entryTypeColor(EntryType.Income) else MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            StatCard(
-                title = "Total Income",
-                value = formatMoney(totalIncome),
-                icon = Icons.Filled.Payments,
-                accent = entryTypeColor(EntryType.Income),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            StatCard(
-                title = "Total Expense",
-                value = formatMoney(totalExpense),
-                icon = Icons.AutoMirrored.Filled.TrendingDown,
-                accent = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            StatCard(
-                title = "Total Investment",
-                value = formatMoney(totalInvestment),
-                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                accent = entryTypeColor(EntryType.Investment),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            item {
+                ChartCard("Net worth") {
+                    val (nwData, nwColors) = if (netWorth >= 0) {
+                        listOf("Expense" to totalExpense, "Net worth" to netWorth) to
+                            listOf(MaterialTheme.colorScheme.error, entryTypeColor(EntryType.Income))
+                    } else {
+                        listOf("Income" to totalIncome, "Overspent" to -netWorth) to
+                            listOf(entryTypeColor(EntryType.Income), MaterialTheme.colorScheme.error)
+                    }
+                    DonutChart(nwData, colors = nwColors)
+                }
+            }
+            item {
+                ChartCard("Income vs Expense vs Investment") {
+                    BarChart(
+                        data = listOf(
+                            "Income" to totalIncome,
+                            "Expense" to totalExpense,
+                            "Investment" to totalInvestment,
+                        ),
+                        colors = listOf(
+                            entryTypeColor(EntryType.Income),
+                            MaterialTheme.colorScheme.error,
+                            entryTypeColor(EntryType.Investment),
+                        ),
+                    )
+                }
+            }
+            item {
+                ChartCard("Expense") {
+                    DonutChart(
+                        expenseByCategory.map { it.categoryName to it.totalMinor },
+                        baseColor = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            item {
+                ChartCard("Income") {
+                    DonutChart(
+                        incomeByCategory.map { it.categoryName to it.totalMinor },
+                        baseColor = entryTypeColor(EntryType.Income),
+                    )
+                }
+            }
+            item {
+                ChartCard("Investment") {
+                    DonutChart(
+                        investmentByCategory.map { it.categoryName to it.totalMinor },
+                        baseColor = entryTypeColor(EntryType.Investment),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartCard(title: String, content: @Composable () -> Unit) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            content()
         }
     }
 }
