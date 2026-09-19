@@ -48,7 +48,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.ExpenserApp
 import com.expenser.app.data.model.ThemeMode
 import com.expenser.app.ui.common.Avatar
+import com.expenser.app.ui.common.EnumDropdown
+import com.expenser.app.ui.common.SUPPORTED_CURRENCIES
 import com.expenser.app.ui.common.copyImageToInternal
+import com.expenser.app.ui.common.currencyLabel
+import com.expenser.app.ui.common.currentCurrencyCode
+import com.expenser.app.ui.common.setCurrencyCode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +79,8 @@ fun ProfileScreen(
     DisposableEffect(Unit) {
         onDispose { container.setPreviewTheme(null) }
     }
+    // Pending currency choice; applied on Save (no live preview needed here).
+    var selectedCurrency by remember { mutableStateOf(currentCurrencyCode()) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -135,6 +142,13 @@ fun ProfileScreen(
                 label = { Text("Username") },
                 modifier = Modifier.fillMaxWidth(),
             )
+            EnumDropdown(
+                label = "Currency",
+                options = SUPPORTED_CURRENCIES,
+                selected = selectedCurrency,
+                onSelected = { code -> selectedCurrency = code },
+                optionLabel = { currencyLabel(it) },
+            )
             Text(
                 "Theme",
                 style = MaterialTheme.typography.titleSmall,
@@ -159,6 +173,8 @@ fun ProfileScreen(
                 onClick = {
                     viewModel.save(name, imagePath)
                     container.setThemeMode(currentTheme)
+                    setCurrencyCode(selectedCurrency)
+                    container.persistCurrency(selectedCurrency)
                 },
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),

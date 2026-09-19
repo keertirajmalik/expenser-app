@@ -1,16 +1,32 @@
 package com.expenser.app.ui.common
 
+import androidx.compose.runtime.mutableStateOf
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
+import java.util.Currency
 import java.util.Locale
 
-private val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
-private val currencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(locale)
+/** Currency codes offered in settings. */
+val SUPPORTED_CURRENCIES = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD", "AED")
 
-/** 1250L -> "₹12.50". */
-fun formatMoney(amountMinor: Long): String =
-    currencyFormat.format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+// Selected currency, as a Compose state so any composable formatting money recomposes on change.
+private val currencyCodeState = mutableStateOf("INR")
+
+fun setCurrencyCode(code: String) { currencyCodeState.value = code }
+fun currentCurrencyCode(): String = currencyCodeState.value
+
+/** Human label for a currency picker, e.g. "INR (₹)". */
+fun currencyLabel(code: String): String =
+    runCatching { "$code (${Currency.getInstance(code).symbol})" }.getOrDefault(code)
+
+/** 1250L -> "₹12.50", using the selected currency. */
+fun formatMoney(amountMinor: Long): String {
+    val fmt = NumberFormat.getCurrencyInstance(Locale.getDefault()).apply {
+        runCatching { currency = Currency.getInstance(currencyCodeState.value) }
+    }
+    return fmt.format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+}
 
 /** 1250L -> "12.5" — plain editable text for an amount field (no symbol, no trailing zeros). */
 fun minorToInput(amountMinor: Long): String =

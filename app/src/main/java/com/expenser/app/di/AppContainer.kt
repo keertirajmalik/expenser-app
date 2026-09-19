@@ -71,4 +71,11 @@ class AppContainer(context: Context) {
         _previewTheme.value = null
         prefs.edit().putString("theme_mode", mode.name).apply()
     }
+
+    /** Persisted currency code; applied to the formatter by [com.expenser.app.ExpenserApp]. */
+    val savedCurrency: String = prefs.getString("currency", "INR") ?: "INR"
+
+    fun persistCurrency(code: String) {
+        prefs.edit().putString("currency", code).apply()
+    }
 }
