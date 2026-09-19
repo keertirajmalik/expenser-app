@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -22,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.common.StatCard
+import com.expenser.app.ui.common.entryTypeColor
 import com.expenser.app.ui.common.formatMoney
 import com.expenser.app.ui.profile.ProfileAvatarAction
 
@@ -33,6 +36,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
 ) {
     val totalExpense by viewModel.totalExpenseMinor.collectAsStateWithLifecycle()
+    val totalInvestment by viewModel.totalInvestmentMinor.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -67,6 +71,13 @@ fun DashboardScreen(
                 value = formatMoney(totalExpense),
                 icon = Icons.AutoMirrored.Filled.TrendingDown,
                 accent = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            StatCard(
+                title = "Total Investment",
+                value = formatMoney(totalInvestment),
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                accent = entryTypeColor(EntryType.Investment),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

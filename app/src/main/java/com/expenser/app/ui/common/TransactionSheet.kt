@@ -1,4 +1,4 @@
-package com.expenser.app.ui.expense
+package com.expenser.app.ui.common
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,9 +31,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.db.entity.TransactionEntity
-import com.expenser.app.ui.common.EnumDropdown
-import com.expenser.app.ui.common.minorToInput
-import com.expenser.app.ui.common.parseMoneyOrNull
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -42,9 +39,14 @@ import java.time.format.DateTimeFormatter
 private val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 
+/**
+ * Add/edit sheet shared by every transaction type (expense, investment, ...).
+ * [noun] is the lowercase entry name used in labels, e.g. "expense" or "investment".
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpenseSheet(
+fun TransactionSheet(
+    noun: String,
     editing: TransactionEntity?,
     categories: List<CategoryEntity>,
     onDismiss: () -> Unit,
@@ -70,7 +72,7 @@ fun ExpenseSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                if (editing == null) "New expense" else "Edit expense",
+                if (editing == null) "New $noun" else "Edit $noun",
                 style = MaterialTheme.typography.titleLarge,
             )
             OutlinedTextField(
@@ -95,7 +97,7 @@ fun ExpenseSheet(
                 selected = selectedCategory,
                 onSelected = { categoryId = it.id },
                 optionLabel = { it.name },
-                placeholder = if (categories.isEmpty()) "Add an Expense category first" else "Select",
+                placeholder = if (categories.isEmpty()) "Add a ${noun.replaceFirstChar { it.uppercase() }} category first" else "Select",
             )
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
@@ -105,7 +107,6 @@ fun ExpenseSheet(
                     label = { Text("Date") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                // Read-only fields don't open a picker on their own; overlay a click target.
                 Box(modifier = Modifier.matchParentSize().clickable { showDatePicker = true })
             }
             OutlinedTextField(
@@ -119,21 +120,13 @@ fun ExpenseSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (editing != null) {
-                    OutlinedButton(
-                        onClick = { onDelete(editing) },
-                        modifier = Modifier.weight(1f),
-                    ) { Text("Delete") }
+                    OutlinedButton(onClick = { onDelete(editing) }, modifier = Modifier.weight(1f)) {
+                        Text("Delete")
+                    }
                 }
                 Button(
                     onClick = {
-                        onSave(
-                            editing?.id,
-                            name,
-                            parsedAmount!!,
-                            categoryId!!,
-                            date.format(ISO),
-                            note.ifBlank { null },
-                        )
+                        onSave(editing?.id, name, parsedAmount!!, categoryId!!, date.format(ISO), note.ifBlank { null })
                     },
                     enabled = canSave,
                     modifier = Modifier.weight(1f),
@@ -156,9 +149,7 @@ fun ExpenseSheet(
                     showDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
         ) { DatePicker(state = state) }
     }
 }

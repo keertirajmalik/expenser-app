@@ -19,6 +19,10 @@ class DashboardViewModel(transactions: TransactionRepository) : ViewModel() {
         transactions.observeTotalMinor(EntryType.Expense)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
+    val totalInvestmentMinor: StateFlow<Long> =
+        transactions.observeTotalMinor(EntryType.Investment)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

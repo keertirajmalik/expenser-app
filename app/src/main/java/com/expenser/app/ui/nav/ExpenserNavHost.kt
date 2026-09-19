@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.Icon
@@ -39,11 +40,13 @@ import androidx.navigation.compose.rememberNavController
 import com.expenser.app.ui.category.CategoryScreen
 import com.expenser.app.ui.dashboard.DashboardScreen
 import com.expenser.app.ui.expense.ExpenseScreen
+import com.expenser.app.ui.investment.InvestmentScreen
 import com.expenser.app.ui.profile.ProfileScreen
 
 private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard),
     Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong),
+    Investments("investments", "Investments", Icons.AutoMirrored.Filled.TrendingUp),
     Categories("categories", "Categories", Icons.Filled.Category),
 }
 
@@ -81,6 +84,7 @@ fun ExpenserNavHost() {
         ) {
             composable(Destination.Dashboard.route) { DashboardScreen(onProfileClick = openProfile) }
             composable(Destination.Expenses.route) { ExpenseScreen(onProfileClick = openProfile) }
+            composable(Destination.Investments.route) { InvestmentScreen(onProfileClick = openProfile) }
             composable(Destination.Categories.route) { CategoryScreen(onProfileClick = openProfile) }
             composable(PROFILE_ROUTE) { ProfileScreen(onBack = { navController.popBackStack() }) }
         }
