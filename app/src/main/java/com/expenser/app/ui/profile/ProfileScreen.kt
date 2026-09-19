@@ -82,6 +82,12 @@ fun ProfileScreen(
     // Pending currency choice; applied on Save (no live preview needed here).
     var selectedCurrency by remember { mutableStateOf(currentCurrencyCode()) }
 
+    // Pending daily-reminder choice; applied on Save alongside the rest.
+    val reminder by container.reminder.collectAsStateWithLifecycle()
+    var reminderEnabled by remember(reminder) { mutableStateOf(reminder.enabled) }
+    var reminderHour by remember(reminder) { mutableStateOf(reminder.hour) }
+    var reminderMinute by remember(reminder) { mutableStateOf(reminder.minute) }
+
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
@@ -169,12 +175,21 @@ fun ProfileScreen(
                 }
             }
 
+            ReminderSection(
+                enabled = reminderEnabled,
+                hour = reminderHour,
+                minute = reminderMinute,
+                onEnabledChange = { reminderEnabled = it },
+                onTimeChange = { h, m -> reminderHour = h; reminderMinute = m },
+            )
+
             Button(
                 onClick = {
                     viewModel.save(name, imagePath)
                     container.setThemeMode(currentTheme)
                     setCurrencyCode(selectedCurrency)
                     container.persistCurrency(selectedCurrency)
+                    container.setReminder(reminderEnabled, reminderHour, reminderMinute)
                 },
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
