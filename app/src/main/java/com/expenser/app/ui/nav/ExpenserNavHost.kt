@@ -7,8 +7,10 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +43,7 @@ fun ExpenserNavHost() {
         // Inner screen Scaffolds (their TopAppBars) own the top inset; don't double it here.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                 Destination.entries.forEach { dest ->
                     val selected = currentDestination?.hierarchy?.any { it.route == dest.route } == true
                     NavigationBarItem(
@@ -55,6 +57,11 @@ fun ExpenserNavHost() {
                         },
                         icon = { Icon(dest.icon, contentDescription = dest.label) },
                         label = { Text(dest.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            indicatorColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                        ),
                     )
                 }
             }

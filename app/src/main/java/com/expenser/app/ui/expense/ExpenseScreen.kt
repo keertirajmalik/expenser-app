@@ -11,16 +11,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,7 +64,14 @@ fun ExpenseScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Expenses") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Expenses", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { sheetTarget = SheetTarget(null) }) {
@@ -106,13 +115,19 @@ private data class SheetTarget(val editing: TransactionEntity?)
 @Composable
 private fun TotalBar(totalMinor: Long) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Total", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Total",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(
             formatMoney(totalMinor),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.error,
         )
     }
@@ -121,7 +136,7 @@ private fun TotalBar(totalMinor: Long) {
 @Composable
 private fun ExpenseRow(item: TransactionListItem, onClick: () -> Unit) {
     val txn = item.transaction
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         onClick = onClick,
     ) {
@@ -140,7 +155,12 @@ private fun ExpenseRow(item: TransactionListItem, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(formatMoney(txn.amountMinor), style = MaterialTheme.typography.titleMedium)
+            Text(
+                formatMoney(txn.amountMinor),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

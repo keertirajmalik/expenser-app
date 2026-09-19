@@ -9,16 +9,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.font.FontWeight
+import com.expenser.app.ui.common.TypeBadge
+import com.expenser.app.ui.common.entryTypeColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,7 +57,14 @@ fun CategoryScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Categories") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Categories", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { sheetTarget = SheetTarget(null) }) {
@@ -95,22 +106,35 @@ private data class SheetTarget(val editing: CategoryEntity?)
 
 @Composable
 private fun CategoryRow(category: CategoryEntity, onClick: () -> Unit) {
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         onClick = onClick,
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(category.name, style = MaterialTheme.typography.titleMedium)
-            Text(
-                buildString {
-                    append(category.type.name)
-                    category.description?.let { append(" · $it") }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+        ) {
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    category.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                TypeBadge(category.type.name, entryTypeColor(category.type))
+            }
+            category.description?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
