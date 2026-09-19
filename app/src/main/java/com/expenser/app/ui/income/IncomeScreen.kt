@@ -1,4 +1,4 @@
-package com.expenser.app.ui.expense
+package com.expenser.app.ui.income
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +22,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,13 +30,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.data.db.dao.TransactionListItem
 import com.expenser.app.data.db.entity.TransactionEntity
+import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.common.TransactionSheet
+import com.expenser.app.ui.common.entryTypeColor
 import com.expenser.app.ui.common.formatMoney
 import com.expenser.app.ui.profile.ScreenTopActions
 import java.time.LocalDate
@@ -47,16 +49,17 @@ private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpenseScreen(
+fun IncomeScreen(
     onCategoriesClick: () -> Unit,
     onProfileClick: () -> Unit,
-    viewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory),
+    viewModel: IncomeViewModel = viewModel(factory = IncomeViewModel.Factory),
 ) {
-    val expenses by viewModel.expenses.collectAsStateWithLifecycle()
+    val income by viewModel.income.collectAsStateWithLifecycle()
     val total by viewModel.totalMinor.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val accent = entryTypeColor(EntryType.Income)
 
     var sheetTarget by remember { mutableStateOf<SheetTarget?>(null) }
 
@@ -70,7 +73,7 @@ fun ExpenseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Expenses", fontWeight = FontWeight.SemiBold) },
+                title = { Text("Income", fontWeight = FontWeight.SemiBold) },
                 actions = { ScreenTopActions(onCategoriesClick, onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -80,18 +83,34 @@ fun ExpenseScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { sheetTarget = SheetTarget(null) }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add expense")
+                Icon(Icons.Filled.Add, contentDescription = "Add income")
             }
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TotalBar(total)
-            if (expenses.isEmpty()) {
-                EmptyState("No expenses yet.\nTap + to add one.")
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Total",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    formatMoney(total),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                )
+            }
+            if (income.isEmpty()) {
+                EmptyState("No income yet.\nTap + to add some.")
             } else {
                 LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                    items(expenses, key = { it.transaction.id }) { item ->
-                        ExpenseRow(item) { sheetTarget = SheetTarget(item.transaction) }
+                    items(income, key = { it.transaction.id }) { item ->
+                        IncomeRow(item, accent) { sheetTarget = SheetTarget(item.transaction) }
                     }
                 }
             }
@@ -100,7 +119,7 @@ fun ExpenseScreen(
 
     sheetTarget?.let { target ->
         TransactionSheet(
-            noun = "expense",
+            noun = "income",
             editing = target.editing,
             categories = categories,
             onDismiss = { sheetTarget = null },
@@ -119,28 +138,11 @@ fun ExpenseScreen(
 private data class SheetTarget(val editing: TransactionEntity?)
 
 @Composable
-private fun TotalBar(totalMinor: Long) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "Total",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            formatMoney(totalMinor),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.error,
-        )
-    }
-}
-
-@Composable
-private fun ExpenseRow(item: TransactionListItem, onClick: () -> Unit) {
+private fun IncomeRow(
+    item: TransactionListItem,
+    accent: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
     val txn = item.transaction
     OutlinedCard(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -165,7 +167,7 @@ private fun ExpenseRow(item: TransactionListItem, onClick: () -> Unit) {
                 formatMoney(txn.amountMinor),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.error,
+                color = accent,
             )
         }
     }

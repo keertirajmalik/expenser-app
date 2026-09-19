@@ -41,7 +41,7 @@ import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.common.TransactionSheet
 import com.expenser.app.ui.common.entryTypeColor
 import com.expenser.app.ui.common.formatMoney
-import com.expenser.app.ui.profile.ProfileAvatarAction
+import com.expenser.app.ui.profile.ScreenTopActions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -50,6 +50,7 @@ private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyy
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InvestmentScreen(
+    onCategoriesClick: () -> Unit,
     onProfileClick: () -> Unit,
     viewModel: InvestmentViewModel = viewModel(factory = InvestmentViewModel.Factory),
 ) {
@@ -73,7 +74,7 @@ fun InvestmentScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Investments", fontWeight = FontWeight.SemiBold) },
-                actions = { ProfileAvatarAction(onClick = onProfileClick) },
+                actions = { ScreenTopActions(onCategoriesClick, onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),

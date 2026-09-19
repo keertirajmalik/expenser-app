@@ -15,8 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -40,17 +40,19 @@ import androidx.navigation.compose.rememberNavController
 import com.expenser.app.ui.category.CategoryScreen
 import com.expenser.app.ui.dashboard.DashboardScreen
 import com.expenser.app.ui.expense.ExpenseScreen
+import com.expenser.app.ui.income.IncomeScreen
 import com.expenser.app.ui.investment.InvestmentScreen
 import com.expenser.app.ui.profile.ProfileScreen
 
 private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard),
+    Income("income", "Income", Icons.Filled.Payments),
     Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong),
     Investments("investments", "Investments", Icons.AutoMirrored.Filled.TrendingUp),
-    Categories("categories", "Categories", Icons.Filled.Category),
 }
 
 private const val PROFILE_ROUTE = "profile"
+private const val CATEGORIES_ROUTE = "categories"
 
 @Composable
 fun ExpenserNavHost() {
@@ -67,25 +69,29 @@ fun ExpenserNavHost() {
             FloatingNavBar(
                 selectedRoute = { route -> currentDestination?.hierarchy?.any { it.route == route } == true },
                 onSelect = { route ->
+                    // Switch tabs and drop any pushed detail screen (categories/profile).
+                    // No saveState/restoreState: restoring a tab's back stack could bring a
+                    // detail screen back on top, making the tap look like a no-op.
                     navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
                         launchSingleTop = true
-                        restoreState = true
                     }
                 },
             )
         },
     ) { padding ->
         val openProfile = { navController.navigate(PROFILE_ROUTE) { launchSingleTop = true } }
+        val openCategories = { navController.navigate(CATEGORIES_ROUTE) { launchSingleTop = true } }
         NavHost(
             navController = navController,
             startDestination = Destination.Dashboard.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Destination.Dashboard.route) { DashboardScreen(onProfileClick = openProfile) }
-            composable(Destination.Expenses.route) { ExpenseScreen(onProfileClick = openProfile) }
-            composable(Destination.Investments.route) { InvestmentScreen(onProfileClick = openProfile) }
-            composable(Destination.Categories.route) { CategoryScreen(onProfileClick = openProfile) }
+            composable(Destination.Dashboard.route) { DashboardScreen(openCategories, openProfile) }
+            composable(Destination.Income.route) { IncomeScreen(openCategories, openProfile) }
+            composable(Destination.Expenses.route) { ExpenseScreen(openCategories, openProfile) }
+            composable(Destination.Investments.route) { InvestmentScreen(openCategories, openProfile) }
+            composable(CATEGORIES_ROUTE) { CategoryScreen(onBack = { navController.popBackStack() }) }
             composable(PROFILE_ROUTE) { ProfileScreen(onBack = { navController.popBackStack() }) }
         }
     }

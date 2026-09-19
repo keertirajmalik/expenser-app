@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -27,16 +28,18 @@ import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.common.StatCard
 import com.expenser.app.ui.common.entryTypeColor
 import com.expenser.app.ui.common.formatMoney
-import com.expenser.app.ui.profile.ProfileAvatarAction
+import com.expenser.app.ui.profile.ScreenTopActions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onCategoriesClick: () -> Unit,
     onProfileClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
 ) {
     val totalExpense by viewModel.totalExpenseMinor.collectAsStateWithLifecycle()
     val totalInvestment by viewModel.totalInvestmentMinor.collectAsStateWithLifecycle()
+    val totalIncome by viewModel.totalIncomeMinor.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -51,7 +54,7 @@ fun DashboardScreen(
                         )
                     }
                 },
-                actions = { ProfileAvatarAction(onClick = onProfileClick) },
+                actions = { ScreenTopActions(onCategoriesClick, onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -66,6 +69,13 @@ fun DashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            StatCard(
+                title = "Total Income",
+                value = formatMoney(totalIncome),
+                icon = Icons.Filled.Payments,
+                accent = entryTypeColor(EntryType.Income),
+                modifier = Modifier.fillMaxWidth(),
+            )
             StatCard(
                 title = "Total Expense",
                 value = formatMoney(totalExpense),

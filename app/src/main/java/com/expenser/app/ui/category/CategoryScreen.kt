@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -23,7 +25,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.font.FontWeight
 import com.expenser.app.ui.common.TypeBadge
 import com.expenser.app.ui.common.entryTypeColor
-import com.expenser.app.ui.profile.ProfileAvatarAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,7 +42,7 @@ import com.expenser.app.data.db.entity.CategoryEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryScreen(
-    onProfileClick: () -> Unit,
+    onBack: () -> Unit,
     viewModel: CategoryViewModel = viewModel(factory = CategoryViewModel.Factory),
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -62,7 +63,11 @@ fun CategoryScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Categories", fontWeight = FontWeight.SemiBold) },
-                actions = { ProfileAvatarAction(onClick = onProfileClick) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
