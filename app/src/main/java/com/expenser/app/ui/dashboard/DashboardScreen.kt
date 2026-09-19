@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +48,7 @@ private fun TotalCard(label: String, amountMinor: Long) {
                 )
             }
             Icon(
-                Icons.Filled.TrendingDown,
+                Icons.AutoMirrored.Filled.TrendingDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
             )

@@ -3,9 +3,9 @@ package com.expenser.app.ui.nav
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -27,7 +27,7 @@ import com.expenser.app.ui.expense.ExpenseScreen
 
 private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard),
-    Expenses("expenses", "Expenses", Icons.Filled.ReceiptLong),
+    Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong),
     Categories("categories", "Categories", Icons.Filled.Category),
 }
 

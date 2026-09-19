@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Expenser" parent="@android:style/Theme.Material.DayNight.NoActionBar">
+    <!-- Only the launch window uses this; Compose (ExpenserTheme) does the real theming. -->
+    <style name="Theme.Expenser" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowBackground">@android:color/background_light</item>
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
     </style>
 </resources>
