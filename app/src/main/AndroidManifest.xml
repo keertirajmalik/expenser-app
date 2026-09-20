@@ -30,9 +30,17 @@
             </intent-filter>
         </activity>
 
+        <!--
+          exported="false": BOOT_COMPLETED is a protected system broadcast and reaches
+          manifest receivers regardless, and the daily alarm arrives through a
+          PendingIntent this app builds against this exact component, which needs no
+          export either. Exported, any installed app could invoke it directly.
+          ReminderScheduler.ACTION_SHOW deliberately has no intent-filter - the alarm
+          intent is explicit, and a filter would only widen the surface again.
+        -->
         <receiver
             android:name=".data.reminder.ReminderReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
