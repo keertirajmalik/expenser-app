@@ -28,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,8 +39,6 @@ fun BackupSection(
     snackbarHostState: SnackbarHostState,
     viewModel: BackupViewModel = viewModel(factory = BackupViewModel.Factory),
 ) {
-    val context = LocalContext.current
-    val resolver = context.contentResolver
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
 
@@ -49,15 +46,15 @@ fun BackupSection(
 
     val exportBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri -> uri?.let { viewModel.exportBackup(resolver, it) } }
+    ) { uri -> uri?.let { viewModel.exportBackup(it) } }
 
     val exportCsv = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv"),
-    ) { uri -> uri?.let { viewModel.exportCsv(resolver, it) } }
+    ) { uri -> uri?.let { viewModel.exportCsv(it) } }
 
     val importBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> uri?.let { viewModel.importBackup(resolver, it) } }
+    ) { uri -> uri?.let { viewModel.importBackup(it) } }
 
     LaunchedEffect(message) {
         message?.let {
