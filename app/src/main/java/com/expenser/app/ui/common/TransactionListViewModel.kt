@@ -1,7 +1,12 @@
 package com.expenser.app.ui.common
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import com.expenser.app.ExpenserApp
 import com.expenser.app.data.db.dao.TransactionListItem
 import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.db.entity.TransactionEntity
@@ -20,11 +25,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * Shared logic for the Expense / Income / Investment lists: they differ only by
- * [type], so search, category/date filtering, sorting and the month scope all
- * live here. Concrete subclasses just supply a [ViewModel.Factory].
+ * Backs the Expense / Income / Investment lists: they differ only by [type], so
+ * search, category/date filtering, sorting and the month scope all live here.
+ * One class parameterized by [EntryType], not a subclass per screen - the three
+ * screens only ever differed by which [EntryType] they scope their queries to.
  */
-abstract class TransactionListViewModel(
+class TransactionListViewModel(
     private val type: EntryType,
     private val transactions: TransactionRepository,
     categories: CategoryRepository,
@@ -91,4 +97,19 @@ abstract class TransactionListViewModel(
     }
 
     fun consumeMessage() { _message.value = null }
+
+    companion object {
+        fun factory(type: EntryType): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app = this[APPLICATION_KEY] as ExpenserApp
+                TransactionListViewModel(
+                    type,
+                    app.container.transactionRepository,
+                    app.container.categoryRepository,
+                    app.container.selectedMonth,
+                    app.container::setSelectedMonth,
+                )
+            }
+        }
+    }
 }

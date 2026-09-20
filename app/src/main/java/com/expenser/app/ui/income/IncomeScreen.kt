@@ -4,12 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.common.TransactionListScreen
+import com.expenser.app.ui.common.TransactionListViewModel
 
 @Composable
 fun IncomeScreen(
     onCategoriesClick: () -> Unit,
     onProfileClick: () -> Unit,
-    viewModel: IncomeViewModel = viewModel(factory = IncomeViewModel.Factory),
+    viewModel: TransactionListViewModel = viewModel(factory = TransactionListViewModel.factory(EntryType.Income)),
 ) {
     TransactionListScreen(
         title = "Income",
