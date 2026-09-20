@@ -13,20 +13,24 @@ import com.expenser.app.data.model.ThemeMode
 import com.expenser.app.data.repo.UserRepository
 import com.expenser.app.ui.common.pruneAvatars
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
  * Owns the whole "profile" screen: name/photo, and the app-wide theme and currency
- * settings, so the screen only ever talks to one interface. Theme/currency still live
- * on [com.expenser.app.di.AppContainer] (theme preview must apply app-wide, not just
- * within this screen), so they're taken as a [StateFlow] + setter, the same pattern
- * [com.expenser.app.ui.common.TransactionListViewModel] uses for the selected month.
+ * settings, so the screen only ever talks to one interface.
+ *
+ * None of that state is owned here. User, theme and currency all outlive this screen -
+ * the avatar is in every top bar, and a theme preview has to apply app-wide - so they
+ * live on [com.expenser.app.di.AppContainer] and arrive as a [StateFlow] plus a setter,
+ * the pattern [com.expenser.app.ui.common.TransactionListViewModel] already uses for the
+ * selected month. What this class adds is the screen's own behaviour: preview-vs-commit,
+ * and persisting the profile.
  */
 class ProfileViewModel(
     private val repository: UserRepository,
+    /** Shared with the top-bar avatar; see [com.expenser.app.di.AppContainer.user]. */
+    val user: StateFlow<UserEntity?>,
     val themeMode: StateFlow<ThemeMode>,
     val previewTheme: StateFlow<ThemeMode?>,
     private val onPreviewTheme: (ThemeMode?) -> Unit,
@@ -36,14 +40,6 @@ class ProfileViewModel(
     /** Drops every stored avatar but the path passed in; run after a successful save. */
     private val onAvatarPersisted: suspend (String?) -> Unit,
 ) : ViewModel() {
-
-    init {
-        viewModelScope.launch { repository.ensureSeeded() }
-    }
-
-    val user: StateFlow<UserEntity?> =
-        repository.observeUser()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -80,6 +76,7 @@ class ProfileViewModel(
                 val app = this[APPLICATION_KEY] as ExpenserApp
                 ProfileViewModel(
                     repository = app.container.userRepository,
+                    user = app.container.user,
                     themeMode = app.container.themeMode,
                     previewTheme = app.container.previewTheme,
                     onPreviewTheme = app.container::setPreviewTheme,
