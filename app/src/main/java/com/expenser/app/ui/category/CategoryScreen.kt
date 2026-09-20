@@ -10,12 +10,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -46,6 +49,7 @@ fun CategoryScreen(
     viewModel: CategoryViewModel = viewModel(factory = CategoryViewModel.Factory),
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -80,15 +84,32 @@ fun CategoryScreen(
             }
         },
     ) { padding ->
-        if (categories.isEmpty()) {
-            EmptyState(padding, "No categories yet.\nTap + to add one.")
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-            ) {
-                items(categories, key = { it.id }) { category ->
-                    CategoryRow(category) { sheetTarget = SheetTarget(category) }
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = viewModel::setQuery,
+                placeholder = { Text("Search categories") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setQuery("") }) {
+                            Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            if (categories.isEmpty()) {
+                EmptyState(
+                    if (query.isNotBlank()) "No categories match your search."
+                    else "No categories yet.\nTap + to add one.",
+                )
+            } else {
+                LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                    items(categories, key = { it.id }) { category ->
+                        CategoryRow(category) { sheetTarget = SheetTarget(category) }
+                    }
                 }
             }
         }
@@ -148,9 +169,9 @@ private fun CategoryRow(category: CategoryEntity, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EmptyState(padding: PaddingValues, text: String) {
+private fun EmptyState(text: String) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

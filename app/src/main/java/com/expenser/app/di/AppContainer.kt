@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.YearMonth
 import java.util.UUID
 
 /**
@@ -48,6 +49,15 @@ class AppContainer(context: Context) {
     val categoryRepository = CategoryRepository(db.categoryDao(), ::currentUserId)
     val transactionRepository = TransactionRepository(db.transactionDao(), ::currentUserId)
     val userRepository = UserRepository(db.userDao(), ::currentUserId)
+
+    // App-wide time scope shared by the dashboard and every transaction list.
+    // null = all time. Defaults to the current month for everyday budgeting.
+    private val _selectedMonth = MutableStateFlow<YearMonth?>(YearMonth.now())
+    val selectedMonth: StateFlow<YearMonth?> = _selectedMonth.asStateFlow()
+
+    fun setSelectedMonth(month: YearMonth?) {
+        _selectedMonth.value = month
+    }
 
     // Theme preference, persisted in SharedPreferences (no extra dependency).
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)

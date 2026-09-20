@@ -14,17 +14,26 @@ import com.expenser.app.data.repo.CategoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class CategoryViewModel(private val repository: CategoryRepository) : ViewModel() {
 
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query
+
     val categories: StateFlow<List<CategoryEntity>> =
-        repository.observeAll().stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            emptyList(),
-        )
+        combine(repository.observeAll(), _query) { list, query ->
+            val q = query.trim()
+            if (q.isEmpty()) list
+            else list.filter {
+                it.name.contains(q, ignoreCase = true) ||
+                    (it.description?.contains(q, ignoreCase = true) == true)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setQuery(query: String) { _query.value = query }
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
