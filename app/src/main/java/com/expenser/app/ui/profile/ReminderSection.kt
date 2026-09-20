@@ -3,6 +3,7 @@ package com.expenser.app.ui.profile
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -160,8 +161,17 @@ fun ReminderSection(
     }
 }
 
+/**
+ * Whether this app may post notifications.
+ *
+ * POST_NOTIFICATIONS only exists from API 33; before that, posting needs no runtime grant
+ * and the user's only control is the system toggle, which this check cannot see. Treating
+ * older versions as granted is the honest answer for the switch - the reminder will post -
+ * and [ReminderNotifier] re-checks before every notification either way.
+ */
 private fun hasNotificationPermission(context: android.content.Context): Boolean =
-    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
         PackageManager.PERMISSION_GRANTED
 
 /** The app's own notification settings - the only route back once a request is denied twice. */
