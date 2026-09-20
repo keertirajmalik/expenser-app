@@ -1,24 +1,82 @@
 name: Build APK
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "25"
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
+      - name: Derive version from tag
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::tag '$TAG' must look like v1.2.3 so versionCode can be derived from it"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v7
-        with:
-          name: expenser-debug-apk-${{ github.sha }}
-          path: app/build/outputs/apk/debug/*.apk
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not set -- see README for how to create it"
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease -PappVersion="$VERSION"
+
+      - name: Attach APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # An unsigned build lands at app-release-unsigned.apk instead, so this
+          # path existing is itself the proof that signing took effect.
+          APK=app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$APK" ]; then
+            echo "::error::$APK missing -- release build was not signed"
+            ls -l app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+
+          mv "$APK" "expenser-$TAG.apk"
+          gh release upload "$TAG" "expenser-$TAG.apk" --clobber
+
+          # Only fill in the commit list if the release was published with no
+          # notes of its own -- never clobber notes someone actually wrote.
+          if [ -n "$(gh release view "$TAG" --json body -q '.body // ""')" ]; then
+            echo "release already has notes, leaving them alone"
+            exit 0
+          fi
+
+          PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          echo "## Commits" > notes.md
+          git log --no-merges --pretty='- %s (%h)' ${PREV:+"$PREV"..}"$TAG" >> notes.md
+          gh release edit "$TAG" --notes-file notes.md

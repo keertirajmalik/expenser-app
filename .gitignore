@@ -21,3 +21,9 @@ local.properties
 /gradle/jdks/
 /gradle/.tmp/
 /gradle/wrapper/dists/
+
+# Signing keystores -- never commit these
+*.jks
+*.keystore
+*.p12
+keystore.properties
