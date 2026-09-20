@@ -92,6 +92,8 @@ class AppContainer(context: Context) {
 
     // Currency preference, persisted in SharedPreferences and mirrored into the
     // Compose-visible formatter cache in Money.kt so `formatMoney` recomposes on change.
+    // `_currency` and that cache must always change together - route every mutation
+    // through `setCurrency` (or the init block below) so they can't drift apart.
     private val _currency = MutableStateFlow(prefs.getString("currency", "INR") ?: "INR")
     val currency: StateFlow<String> = _currency.asStateFlow()
 
@@ -103,7 +105,7 @@ class AppContainer(context: Context) {
     fun setCurrency(code: String) {
         _currency.value = code
         prefs.edit { putString("currency", code) }
-        setCurrencyCode(code)
+        setCurrencyCode(_currency.value)
     }
 
     // Daily "add your transactions" reminder. Defaults to 9:00 PM, off until enabled.

@@ -6,10 +6,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Reads/writes the raw text of a backup/export file at a SAF [Uri]. The seam lets
- * [com.expenser.app.ui.profile.BackupViewModel]'s orchestration - busy state,
- * success/error messaging - be exercised in a plain JUnit test with a fake,
- * instead of needing Robolectric or a device for [ContentResolver] I/O.
+ * Reads/writes the raw text of a backup/export file at a SAF [Uri]. The seam isolates
+ * [ContentResolver] I/O behind an interface a test can fake, instead of needing
+ * Robolectric or a device. [com.expenser.app.ui.profile.BackupViewModel] still takes
+ * a concrete [com.expenser.app.data.repo.BackupRepository], so exercising its full
+ * busy/success/error orchestration in a plain JUnit test also needs that repository
+ * extracted behind an interface - not done here.
  */
 interface BackupFileIO {
     suspend fun write(uri: Uri, text: String)
