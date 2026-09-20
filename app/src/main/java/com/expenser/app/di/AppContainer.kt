@@ -11,6 +11,7 @@ import com.expenser.app.data.repo.BackupRepository
 import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.TransactionRepository
 import com.expenser.app.data.repo.UserRepository
+import com.expenser.app.ui.common.setCurrencyCode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.YearMonth
 import java.util.UUID
+import androidx.core.content.edit
 
 /**
  * Manual dependency container. One instance lives on [com.expenser.app.ExpenserApp]
@@ -85,14 +87,25 @@ class AppContainer(context: Context) {
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         _previewTheme.value = null
-        prefs.edit().putString("theme_mode", mode.name).apply()
+        prefs.edit { putString("theme_mode", mode.name) }
     }
 
-    /** Persisted currency code; applied to the formatter by [com.expenser.app.ExpenserApp]. */
-    val savedCurrency: String = prefs.getString("currency", "INR") ?: "INR"
+    // Currency preference, persisted in SharedPreferences and mirrored into the
+    // Compose-visible formatter cache in Money.kt so `formatMoney` recomposes on change.
+    // `_currency` and that cache must always change together - route every mutation
+    // through `setCurrency` (or the init block below) so they can't drift apart.
+    private val _currency = MutableStateFlow(prefs.getString("currency", "INR") ?: "INR")
+    val currency: StateFlow<String> = _currency.asStateFlow()
 
-    fun persistCurrency(code: String) {
-        prefs.edit().putString("currency", code).apply()
+    init {
+        setCurrencyCode(_currency.value)
+    }
+
+    /** The single seam for changing currency: persists it and updates the live formatter. */
+    fun setCurrency(code: String) {
+        _currency.value = code
+        prefs.edit { putString("currency", code) }
+        setCurrencyCode(_currency.value)
     }
 
     // Daily "add your transactions" reminder. Defaults to 9:00 PM, off until enabled.
@@ -107,11 +120,11 @@ class AppContainer(context: Context) {
 
     fun setReminder(enabled: Boolean, hour: Int, minute: Int) {
         _reminder.value = ReminderSetting(enabled, hour, minute)
-        prefs.edit()
-            .putBoolean("reminder_enabled", enabled)
-            .putInt("reminder_hour", hour)
-            .putInt("reminder_minute", minute)
-            .apply()
+        prefs.edit {
+            putBoolean("reminder_enabled", enabled)
+                .putInt("reminder_hour", hour)
+                .putInt("reminder_minute", minute)
+        }
         if (enabled) ReminderScheduler.schedule(appContext, hour, minute)
         else ReminderScheduler.cancel(appContext)
     }
