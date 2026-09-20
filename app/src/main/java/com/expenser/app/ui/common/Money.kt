@@ -10,11 +10,12 @@ import java.util.Locale
 /** Currency codes offered in settings. */
 val SUPPORTED_CURRENCIES = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD", "AED")
 
-// Selected currency, as a Compose state so any composable formatting money recomposes on change.
+// Selected currency, as a Compose state so any composable formatting money recomposes on
+// change. The single source of truth is AppContainer.currency; this is just the
+// Compose-visible cache formatMoney reads, kept in sync via setCurrencyCode.
 private val currencyCodeState = mutableStateOf("INR")
 
 fun setCurrencyCode(code: String) { currencyCodeState.value = code }
-fun currentCurrencyCode(): String = currencyCodeState.value
 
 /** Human label for a currency picker, e.g. "INR (₹)". */
 fun currencyLabel(code: String): String =

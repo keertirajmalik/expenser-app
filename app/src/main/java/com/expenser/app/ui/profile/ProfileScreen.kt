@@ -32,7 +32,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,8 +51,6 @@ import com.expenser.app.ui.common.EnumDropdown
 import com.expenser.app.ui.common.SUPPORTED_CURRENCIES
 import com.expenser.app.ui.common.copyImageToInternal
 import com.expenser.app.ui.common.currencyLabel
-import com.expenser.app.ui.common.currentCurrencyCode
-import com.expenser.app.ui.common.setCurrencyCode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,8 +59,9 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val context = LocalContext.current
+    // Reminder settings aren't part of this refactor - still owned by AppContainer directly.
     val container = (context.applicationContext as ExpenserApp).container
-    val themeMode by container.themeMode.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -73,14 +71,12 @@ fun ProfileScreen(
     var imagePath by remember(user?.id) { mutableStateOf(user?.image) }
 
     // Live theme preview: tapping a chip previews it app-wide; the saved theme is
-    // restored when leaving this screen unless Save was pressed.
-    val previewTheme by container.previewTheme.collectAsStateWithLifecycle()
+    // restored when leaving this screen unless Save was pressed (viewModel.onCleared()).
+    val previewTheme by viewModel.previewTheme.collectAsStateWithLifecycle()
     val currentTheme = previewTheme ?: themeMode
-    DisposableEffect(Unit) {
-        onDispose { container.setPreviewTheme(null) }
-    }
     // Pending currency choice; applied on Save (no live preview needed here).
-    var selectedCurrency by remember { mutableStateOf(currentCurrencyCode()) }
+    val savedCurrency by viewModel.currency.collectAsStateWithLifecycle()
+    var selectedCurrency by remember { mutableStateOf(savedCurrency) }
 
     // Pending daily-reminder choice; applied on Save alongside the rest.
     val reminder by container.reminder.collectAsStateWithLifecycle()
@@ -168,7 +164,7 @@ fun ProfileScreen(
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = currentTheme == mode,
-                        onClick = { container.setPreviewTheme(mode) },
+                        onClick = { viewModel.previewTheme(mode) },
                         label = { Text(mode.name) },
                         leadingIcon = { Icon(themeIcon(mode), contentDescription = null) },
                     )
@@ -185,10 +181,7 @@ fun ProfileScreen(
 
             Button(
                 onClick = {
-                    viewModel.save(name, imagePath)
-                    container.setThemeMode(currentTheme)
-                    setCurrencyCode(selectedCurrency)
-                    container.persistCurrency(selectedCurrency)
+                    viewModel.save(name, imagePath, currentTheme, selectedCurrency)
                     container.setReminder(reminderEnabled, reminderHour, reminderMinute)
                 },
                 enabled = name.isNotBlank(),
