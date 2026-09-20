@@ -63,6 +63,11 @@ android {
     }
 }
 
+ksp {
+    // Room writes schemas/<version>.json here; committed so migrations can diff against it.
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21

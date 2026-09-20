@@ -63,8 +63,19 @@ class AppContainer(context: Context) {
     private val _selectedMonth = MutableStateFlow<YearMonth?>(YearMonth.now())
     val selectedMonth: StateFlow<YearMonth?> = _selectedMonth.asStateFlow()
 
+    // Whether the scope above is the calendar default or something the user chose. An
+    // untouched default has to keep following the calendar: the process can outlive a
+    // month boundary, and YearMonth.now() was only ever read once, at construction.
+    private var monthChosenByUser = false
+
     fun setSelectedMonth(month: YearMonth?) {
+        monthChosenByUser = true
         _selectedMonth.value = month
+    }
+
+    /** Re-point an untouched default at the current month. Called when the app foregrounds. */
+    fun refreshDefaultMonth() {
+        if (!monthChosenByUser) _selectedMonth.value = YearMonth.now()
     }
 
     // Theme preference, persisted in SharedPreferences (no extra dependency).

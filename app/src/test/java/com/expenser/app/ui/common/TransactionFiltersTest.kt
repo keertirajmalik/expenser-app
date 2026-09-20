@@ -88,6 +88,40 @@ class TransactionFiltersTest {
     }
 
     @Test
+    fun `descending date keeps the name tiebreak ascending`() {
+        val sameDay = listOf(
+            item("Cherry", 100, "2026-09-01"),
+            item("Apple", 200, "2026-09-01"),
+            item("Banana", 300, "2026-09-01"),
+        )
+        // Matches the DAO's `ORDER BY t.date DESC, t.name COLLATE NOCASE`: the date
+        // flips, the name tiebreak does not.
+        val desc = TransactionFilter(sortField = SortField.Date, sortDirection = SortDirection.Descending)
+        assertEquals(listOf("Apple", "Banana", "Cherry"), names(sameDay.applyFilter(desc, null)))
+        val asc = desc.copy(sortDirection = SortDirection.Ascending)
+        assertEquals(listOf("Apple", "Banana", "Cherry"), names(sameDay.applyFilter(asc, null)))
+    }
+
+    @Test
+    fun `descending amount keeps the name tiebreak ascending`() {
+        val tied = listOf(
+            item("Cherry", 500, "2026-09-03"),
+            item("Apple", 500, "2026-09-01"),
+        )
+        val desc = TransactionFilter(sortField = SortField.Amount, sortDirection = SortDirection.Descending)
+        assertEquals(listOf("Apple", "Cherry"), names(tied.applyFilter(desc, null)))
+    }
+
+    @Test
+    fun `range bounds are inclusive on both ends`() {
+        val filter = TransactionFilter(
+            start = java.time.LocalDate.parse("2026-09-01"),
+            end = java.time.LocalDate.parse("2026-09-03"),
+        )
+        assertEquals(listOf("Coffee", "Rent"), names(sample.applyFilter(filter, null)))
+    }
+
+    @Test
     fun `totalMinor sums the filtered rows`() {
         val septemberTotal = sample.applyFilter(TransactionFilter(), YearMonth.of(2026, 9)).totalMinor()
         assertEquals(100_500, septemberTotal)

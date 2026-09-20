@@ -24,7 +24,8 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +39,12 @@ import java.time.format.DateTimeFormatter
 
 private val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+
+/** LocalDate isn't bundleable; round-trip it through its ISO form. */
+private val LocalDateSaver = Saver<LocalDate, String>(
+    save = { it.toString() },
+    restore = { runCatching { LocalDate.parse(it) }.getOrNull() },
+)
 
 /**
  * Add/edit sheet shared by every transaction type (expense, investment, ...).
@@ -55,12 +62,16 @@ fun TransactionSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var name by remember { mutableStateOf(editing?.name ?: "") }
-    var amount by remember { mutableStateOf(editing?.let { minorToInput(it.amountMinor) } ?: "") }
-    var categoryId by remember { mutableStateOf(editing?.categoryId) }
-    var date by remember { mutableStateOf(editing?.date?.let { LocalDate.parse(it) } ?: LocalDate.now()) }
-    var note by remember { mutableStateOf(editing?.note ?: "") }
-    var showDatePicker by remember { mutableStateOf(false) }
+    // rememberSaveable throughout: a rotation or a process death mid-entry would
+    // otherwise discard everything typed into the sheet.
+    var name by rememberSaveable { mutableStateOf(editing?.name ?: "") }
+    var amount by rememberSaveable { mutableStateOf(editing?.let { minorToInput(it.amountMinor) } ?: "") }
+    var categoryId by rememberSaveable { mutableStateOf(editing?.categoryId) }
+    var date by rememberSaveable(stateSaver = LocalDateSaver) {
+        mutableStateOf(editing?.date?.let { LocalDate.parse(it) } ?: LocalDate.now())
+    }
+    var note by rememberSaveable { mutableStateOf(editing?.note ?: "") }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
     val parsedAmount = parseMoneyOrNull(amount)
     val selectedCategory = categories.firstOrNull { it.id == categoryId }

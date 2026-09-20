@@ -4,9 +4,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!--
+      allowBackup is off for now: auto-backup would copy the unencrypted expenser.db off
+      the device, and the app already offers an explicit JSON export. The cost is that a
+      phone switch loses data unless the user exported first, so this is worth revisiting
+      with dataExtractionRules that exclude only the database and the avatars directory.
+      See https://github.com/keertirajmalik/expenser-app/issues/18
+    -->
     <application
         android:name=".ExpenserApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"

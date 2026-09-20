@@ -16,7 +16,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -35,9 +35,10 @@ fun CategorySheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var name by remember { mutableStateOf(editing?.name ?: "") }
-    var type by remember { mutableStateOf(editing?.type ?: EntryType.Expense) }
-    var description by remember { mutableStateOf(editing?.description ?: "") }
+    // rememberSaveable: don't lose typed input to a rotation mid-entry.
+    var name by rememberSaveable { mutableStateOf(editing?.name ?: "") }
+    var type by rememberSaveable { mutableStateOf(editing?.type ?: EntryType.Expense) }
+    var description by rememberSaveable { mutableStateOf(editing?.description ?: "") }
     val canSave = name.isNotBlank()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {

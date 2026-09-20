@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,8 +54,10 @@ fun CategoryScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // null = closed; Optional editing target wrapped so we can distinguish "add".
-    var sheetTarget by remember { mutableStateOf<SheetTarget?>(null) }
+    // Saveable, so a rotation doesn't close the sheet mid-entry. Keyed by id and
+    // re-resolved from `categories`, which avoids needing a Saver for the entity.
+    var sheetOpen by rememberSaveable { mutableStateOf(false) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(message) {
         message?.let {
@@ -79,7 +82,7 @@ fun CategoryScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { sheetTarget = SheetTarget(null) }) {
+            FloatingActionButton(onClick = { editingId = null; sheetOpen = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add category")
             }
         },
@@ -108,30 +111,38 @@ fun CategoryScreen(
             } else {
                 LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
                     items(categories, key = { it.id }) { category ->
-                        CategoryRow(category) { sheetTarget = SheetTarget(category) }
+                        CategoryRow(category) {
+                            editingId = category.id
+                            sheetOpen = true
+                        }
                     }
                 }
             }
         }
     }
 
-    sheetTarget?.let { target ->
-        CategorySheet(
-            editing = target.editing,
-            onDismiss = { sheetTarget = null },
-            onSave = { id, name, type, description ->
-                viewModel.save(id, name, type, description)
-                sheetTarget = null
-            },
-            onDelete = {
-                viewModel.delete(it)
-                sheetTarget = null
-            },
-        )
+    if (sheetOpen) {
+        val editing = editingId?.let { id -> categories.firstOrNull { it.id == id } }
+        // An id that no longer resolves means the row went away while the sheet was gone;
+        // reopening blank would turn an edit into a new entry, so close instead.
+        if (editingId != null && editing == null) {
+            sheetOpen = false
+        } else {
+            CategorySheet(
+                editing = editing,
+                onDismiss = { sheetOpen = false },
+                onSave = { id, name, type, description ->
+                    viewModel.save(id, name, type, description)
+                    sheetOpen = false
+                },
+                onDelete = {
+                    viewModel.delete(it)
+                    sheetOpen = false
+                },
+            )
+        }
     }
 }
-
-private data class SheetTarget(val editing: CategoryEntity?)
 
 @Composable
 private fun CategoryRow(category: CategoryEntity, onClick: () -> Unit) {

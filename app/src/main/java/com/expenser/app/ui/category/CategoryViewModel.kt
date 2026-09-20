@@ -1,6 +1,7 @@
 package com.expenser.app.ui.category
 
 import android.database.sqlite.SQLiteConstraintException
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import com.expenser.app.ExpenserApp
 import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.model.EntryType
 import com.expenser.app.data.repo.CategoryRepository
+import com.expenser.app.data.repo.CategoryRuleViolation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -51,18 +53,32 @@ class CategoryViewModel(private val repository: CategoryRepository) : ViewModel(
                 repository.delete(category)
             } catch (e: SQLiteConstraintException) {
                 _message.value = "\"${category.name}\" is in use and can't be deleted."
+            } catch (e: Exception) {
+                Log.e(TAG, "Couldn't delete category ${category.id}", e)
+                _message.value = "Couldn't delete \"${category.name}\"."
             }
         }
     }
 
     fun consumeMessage() { _message.value = null }
 
-    private fun Throwable.userMessage(): String = when {
-        this is SQLiteConstraintException -> "A category with that name already exists."
-        else -> message ?: "Something went wrong."
+    /**
+     * Snackbar text. Only [CategoryRuleViolation] carries a message written for the
+     * user; every other throwable is logged and reported generically rather than
+     * putting raw SQLite text like "FOREIGN KEY constraint failed (code 787)" on screen.
+     */
+    private fun Throwable.userMessage(): String = when (this) {
+        is CategoryRuleViolation -> message ?: "That change isn't allowed."
+        is SQLiteConstraintException -> "A category with that name already exists."
+        else -> {
+            Log.e(TAG, "Couldn't save category", this)
+            "Couldn't save the category."
+        }
     }
 
     companion object {
+        private const val TAG = "CategoryViewModel"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ExpenserApp

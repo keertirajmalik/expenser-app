@@ -68,14 +68,16 @@ fun List<TransactionListItem>.applyFilter(
         matchesQuery && matchesCategory && matchesRange
     }
 
-    val comparator: Comparator<TransactionListItem> = when (filter.sortField) {
-        SortField.Date -> compareBy({ it.transaction.date }, { it.transaction.name.lowercase() })
+    val primary: Comparator<TransactionListItem> = when (filter.sortField) {
+        SortField.Date -> compareBy { it.transaction.date }
         SortField.Amount -> compareBy { it.transaction.amountMinor }
         SortField.Name -> compareBy { it.transaction.name.lowercase() }
     }
-    return filtered.sortedWith(
-        if (filter.sortDirection == SortDirection.Descending) comparator.reversed() else comparator,
-    )
+    // Only the chosen field flips. The name tiebreak stays A->Z in both directions,
+    // matching the DAO's `ORDER BY t.date DESC, t.name COLLATE NOCASE` - reversing the
+    // whole comparator would also reverse the tiebreak and disagree with it.
+    val ordered = if (filter.sortDirection == SortDirection.Descending) primary.reversed() else primary
+    return filtered.sortedWith(ordered.thenBy { it.transaction.name.lowercase() })
 }
 
 /** Keep only rows whose date falls in [month]; a null month keeps everything. */

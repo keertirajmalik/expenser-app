@@ -1,5 +1,6 @@
 package com.expenser.app.ui.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.expenser.app.ExpenserApp
 import com.expenser.app.data.db.entity.UserEntity
 import com.expenser.app.data.model.ThemeMode
 import com.expenser.app.data.repo.UserRepository
+import com.expenser.app.ui.common.pruneAvatars
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +33,8 @@ class ProfileViewModel(
     private val onCommitTheme: (ThemeMode) -> Unit,
     val currency: StateFlow<String>,
     private val onSetCurrency: (String) -> Unit,
+    /** Drops every stored avatar but the path passed in; run after a successful save. */
+    private val onAvatarPersisted: suspend (String?) -> Unit,
 ) : ViewModel() {
 
     init {
@@ -53,14 +57,24 @@ class ProfileViewModel(
         onSetCurrency(currency)
         viewModelScope.launch {
             runCatching { repository.updateProfile(name, image) }
-                .onSuccess { _message.value = "Profile updated" }
-                .onFailure { _message.value = it.message ?: "Couldn't update profile" }
+                .onSuccess {
+                    // Only once the row points at `image` - pruning first would let a
+                    // failed save leave the profile referencing a deleted file.
+                    onAvatarPersisted(image)
+                    _message.value = "Profile updated"
+                }
+                .onFailure {
+                    Log.e(TAG, "Couldn't update profile", it)
+                    _message.value = "Couldn't update profile"
+                }
         }
     }
 
     fun consumeMessage() { _message.value = null }
 
     companion object {
+        private const val TAG = "ProfileViewModel"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ExpenserApp
@@ -72,6 +86,7 @@ class ProfileViewModel(
                     onCommitTheme = app.container::setThemeMode,
                     currency = app.container.currency,
                     onSetCurrency = app.container::setCurrency,
+                    onAvatarPersisted = { path -> pruneAvatars(app, path) },
                 )
             }
         }

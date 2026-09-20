@@ -16,6 +16,13 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE type = :type ORDER BY name COLLATE NOCASE")
     fun observeByType(type: EntryType): Flow<List<CategoryEntity>>
 
+    @Query("SELECT * FROM categories WHERE id = :id")
+    suspend fun findById(id: String): CategoryEntity?
+
+    /** How many transactions reference this category. Gates changing its [EntryType]. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE categoryId = :id")
+    suspend fun transactionCount(id: String): Int
+
     @Upsert
     suspend fun upsert(category: CategoryEntity)
 
