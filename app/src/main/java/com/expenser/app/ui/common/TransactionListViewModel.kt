@@ -1,5 +1,6 @@
 package com.expenser.app.ui.common
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -84,21 +85,40 @@ class TransactionListViewModel(
         viewModelScope.launch {
             runCatching {
                 transactions.save(id, name, amountMinor, categoryId, date, note, type)
-            }.onFailure { _message.value = it.message ?: "Couldn't save ${type.name.lowercase()}." }
+            }.onFailure { report(it, "Couldn't save ${noun()}.") }
         }
     }
 
     fun delete(transaction: TransactionEntity) {
-        viewModelScope.launch { transactions.delete(transaction) }
+        viewModelScope.launch {
+            runCatching { transactions.delete(transaction) }
+                .onFailure { report(it, "Couldn't delete ${noun()}.") }
+        }
     }
 
     fun restore(transaction: TransactionEntity) {
-        viewModelScope.launch { transactions.restore(transaction) }
+        viewModelScope.launch {
+            runCatching { transactions.restore(transaction) }
+                .onFailure { report(it, "Couldn't undo ${noun()}.") }
+        }
+    }
+
+    private fun noun() = type.name.lowercase()
+
+    /**
+     * Log the cause and show [userMessage]. The throwable's own text is a raw DB error
+     * ("FOREIGN KEY constraint failed (code 787)"), so it belongs in logcat, not a snackbar.
+     */
+    private fun report(cause: Throwable, userMessage: String) {
+        Log.e(TAG, userMessage, cause)
+        _message.value = userMessage
     }
 
     fun consumeMessage() { _message.value = null }
 
     companion object {
+        private const val TAG = "TransactionListVM"
+
         fun factory(type: EntryType): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ExpenserApp

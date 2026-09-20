@@ -14,7 +14,9 @@ val RoseLightSecondary = Color(0xFFF4F4F5)
 val RoseLightSecondaryFg = Color(0xFF18181B)
 val RoseLightMuted = Color(0xFFF4F4F5)
 val RoseLightMutedFg = Color(0xFF71717A)
-val RoseLightDestructive = Color(0xFFEF4444)
+// Text-weight destructive: #EF4444 on white is 3.76:1, under AA for the 16sp amounts
+// that entryTypeColor paints with it. #DC2626 is 4.83:1.
+val RoseLightDestructive = Color(0xFFDC2626)
 val RoseLightDestructiveFg = Color(0xFFFAFAFA)
 val RoseLightBorder = Color(0xFFE4E4E7)
 
@@ -28,14 +30,11 @@ val RoseDarkSecondary = Color(0xFF27272A)
 val RoseDarkSecondaryFg = Color(0xFFFAFAFA)
 val RoseDarkMuted = Color(0xFF262626)
 val RoseDarkMutedFg = Color(0xFFA1A1AA)
-val RoseDarkDestructive = Color(0xFF7F1D1D)
-val RoseDarkDestructiveFg = Color(0xFFFEF2F2)
+// shadcn's dark --destructive (#7F1D1D) is a *container* colour. Material's `error` is
+// also a foreground - entryTypeColor(Expense) paints every expense amount with it - and
+// #7F1D1D on #0C0A09 is 1.97:1, below even the 3:1 large-text floor. Follow Material's
+// dark convention instead: a light error with a dark onError. 7.34:1 on the background,
+// and 5.81:1 for the icon on the swipe-to-delete fill.
+val RoseDarkDestructive = Color(0xFFFB7185)
+val RoseDarkDestructiveFg = Color(0xFF4C0519)
 val RoseDarkBorder = Color(0xFF27272A)
-
-// Chart palette (kept for future dashboard charts).
-val ChartLight = listOf(
-    Color(0xFF2A9D90), Color(0xFFE76E50), Color(0xFF274754), Color(0xFFE8C468), Color(0xFFF4A462),
-)
-val ChartDark = listOf(
-    Color(0xFF2662D9), Color(0xFFE23670), Color(0xFFE88C30), Color(0xFFAF57DB), Color(0xFF2EB88A),
-)

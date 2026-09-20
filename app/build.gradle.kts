@@ -25,9 +25,14 @@ android {
 
     defaultConfig {
         applicationId = "com.expenser.app"
-        minSdk = 35
-        //noinspection OldTargetApi
-        targetSdk = 35
+        // Android 8.0. The real floor the code imposes: java.time and
+        // NotificationChannel both land at 26, and lint reports no NewApi below that -
+        // the one API above it is POST_NOTIFICATIONS (33), which ReminderSection guards.
+        minSdk = 26
+        // Play requires 36 for new apps and updates as of 2026-08-31. The app was
+        // already edge-to-edge and overrides no onBackPressed, so nothing in the
+        // target-36 behaviour changes applies to it.
+        targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersion
         vectorDrawables { useSupportLibrary = true }
@@ -61,6 +66,11 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+ksp {
+    // Room writes schemas/<version>.json here; committed so migrations can diff against it.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 kotlin {
