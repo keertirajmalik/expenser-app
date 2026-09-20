@@ -5,6 +5,8 @@ import androidx.room.Room
 import com.expenser.app.data.db.ExpenserDatabase
 import com.expenser.app.data.db.entity.UserEntity
 import com.expenser.app.data.model.ThemeMode
+import com.expenser.app.data.reminder.ReminderScheduler
+import com.expenser.app.data.reminder.ReminderSetting
 import com.expenser.app.data.repo.BackupRepository
 import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.TransactionRepository
@@ -22,6 +24,8 @@ import java.util.UUID
  * and hands repositories to the ViewModels. No Hilt (see CONTEXT.md).
  */
 class AppContainer(context: Context) {
+
+    private val appContext = context.applicationContext
 
     private val db = Room.databaseBuilder(
         context.applicationContext,
@@ -89,5 +93,26 @@ class AppContainer(context: Context) {
 
     fun persistCurrency(code: String) {
         prefs.edit().putString("currency", code).apply()
+    }
+
+    // Daily "add your transactions" reminder. Defaults to 9:00 PM, off until enabled.
+    private val _reminder = MutableStateFlow(
+        ReminderSetting(
+            enabled = prefs.getBoolean("reminder_enabled", false),
+            hour = prefs.getInt("reminder_hour", 21),
+            minute = prefs.getInt("reminder_minute", 0),
+        ),
+    )
+    val reminder: StateFlow<ReminderSetting> = _reminder.asStateFlow()
+
+    fun setReminder(enabled: Boolean, hour: Int, minute: Int) {
+        _reminder.value = ReminderSetting(enabled, hour, minute)
+        prefs.edit()
+            .putBoolean("reminder_enabled", enabled)
+            .putInt("reminder_hour", hour)
+            .putInt("reminder_minute", minute)
+            .apply()
+        if (enabled) ReminderScheduler.schedule(appContext, hour, minute)
+        else ReminderScheduler.cancel(appContext)
     }
 }
