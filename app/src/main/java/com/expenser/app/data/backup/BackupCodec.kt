@@ -88,7 +88,7 @@ object BackupCodec {
         return CategoryEntity(
             id = m.str("id"),
             name = m.str("name"),
-            type = EntryType.valueOf(m.str("type")),
+            type = m.entryType("type"),
             description = m.strOrNull("description"),
             userId = m.strOrNull("userId") ?: "",
         )
@@ -103,7 +103,7 @@ object BackupCodec {
             categoryId = m.str("categoryId"),
             date = m.str("date"),
             note = m.strOrNull("note"),
-            type = EntryType.valueOf(m.str("type")),
+            type = m.entryType("type"),
             userId = m.strOrNull("userId") ?: "",
         )
     }
@@ -115,6 +115,12 @@ object BackupCodec {
         this[key] as? String ?: throw IllegalArgumentException("Missing or invalid '$key'.")
 
     private fun Map<*, *>.strOrNull(key: String): String? = this[key] as? String
+
+    private fun Map<*, *>.entryType(key: String): EntryType {
+        val raw = str(key)
+        return EntryType.entries.firstOrNull { it.name == raw }
+            ?: throw IllegalArgumentException("Unknown '$key' value '$raw'.")
+    }
 
     private fun Map<*, *>.long(key: String): Long =
         (this[key] as? Number)?.toLong() ?: throw IllegalArgumentException("Missing or invalid '$key'.")

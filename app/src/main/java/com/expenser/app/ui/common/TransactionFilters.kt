@@ -40,6 +40,8 @@ data class TransactionFilter(
  *
  * Time window: a custom [TransactionFilter.start]/[end] wins; otherwise the
  * global [month] scopes to that calendar month; a null month means all time.
+ * Stored dates are ISO `yyyy-MM-dd`, so range checks compare the strings directly -
+ * lexicographic order matches chronological order and no parsing is needed per row.
  */
 fun List<TransactionListItem>.applyFilter(
     filter: TransactionFilter,
@@ -50,6 +52,8 @@ fun List<TransactionListItem>.applyFilter(
         month != null -> month.atDay(1) to month.atEndOfMonth()
         else -> null to null
     }
+    val fromIso = from?.toString()
+    val toIso = to?.toString()
     val query = filter.query.trim()
 
     val filtered = filter { item ->
@@ -59,9 +63,8 @@ fun List<TransactionListItem>.applyFilter(
             item.categoryName.contains(query, ignoreCase = true) ||
             (txn.note?.contains(query, ignoreCase = true) == true)
         val matchesCategory = filter.categoryId == null || txn.categoryId == filter.categoryId
-        val date = LocalDate.parse(txn.date)
-        val matchesRange = (from == null || !date.isBefore(from)) &&
-            (to == null || !date.isAfter(to))
+        val matchesRange = (fromIso == null || txn.date >= fromIso) &&
+            (toIso == null || txn.date <= toIso)
         matchesQuery && matchesCategory && matchesRange
     }
 
@@ -78,12 +81,8 @@ fun List<TransactionListItem>.applyFilter(
 /** Keep only rows whose date falls in [month]; a null month keeps everything. */
 fun List<TransactionListItem>.scopeToMonth(month: YearMonth?): List<TransactionListItem> {
     if (month == null) return this
-    val from = month.atDay(1)
-    val to = month.atEndOfMonth()
-    return filter {
-        val date = LocalDate.parse(it.transaction.date)
-        !date.isBefore(from) && !date.isAfter(to)
-    }
+    val range = month.atDay(1).toString()..month.atEndOfMonth().toString()
+    return filter { it.transaction.date in range }
 }
 
 /** Sum of the amounts (minor units) in this list. */

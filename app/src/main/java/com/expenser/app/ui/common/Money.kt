@@ -21,13 +21,26 @@ fun setCurrencyCode(code: String) { currencyCodeState.value = code }
 fun currencyLabel(code: String): String =
     runCatching { "$code (${Currency.getInstance(code).symbol})" }.getOrDefault(code)
 
-/** 1250L -> "₹12.50", using the selected currency. */
-fun formatMoney(amountMinor: Long): String {
-    val fmt = NumberFormat.getCurrencyInstance(Locale.getDefault()).apply {
-        runCatching { currency = Currency.getInstance(currencyCodeState.value) }
+// Building a NumberFormat is expensive and formatMoney runs per row, per recomposition,
+// so keep the last one. Keyed on code + locale: both can change while the app is alive.
+// The key is read on every call, so the snapshot read on currencyCodeState still registers.
+private var formatKey: Pair<String, Locale>? = null
+private var format: NumberFormat? = null
+
+private fun currencyFormat(): NumberFormat {
+    val key = currencyCodeState.value to Locale.getDefault()
+    format?.let { if (formatKey == key) return it }
+    val fresh = NumberFormat.getCurrencyInstance(key.second).apply {
+        runCatching { currency = Currency.getInstance(key.first) }
     }
-    return fmt.format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+    formatKey = key
+    format = fresh
+    return fresh
 }
+
+/** 1250L -> "₹12.50", using the selected currency. */
+fun formatMoney(amountMinor: Long): String =
+    currencyFormat().format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
 
 /** 1250L -> "12.5" — plain editable text for an amount field (no symbol, no trailing zeros). */
 fun minorToInput(amountMinor: Long): String =

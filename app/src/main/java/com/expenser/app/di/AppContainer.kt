@@ -30,7 +30,7 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
     private val db = Room.databaseBuilder(
-        context.applicationContext,
+        appContext,
         ExpenserDatabase::class.java,
         "expenser.db",
     ).build()
@@ -68,7 +68,7 @@ class AppContainer(context: Context) {
     }
 
     // Theme preference, persisted in SharedPreferences (no extra dependency).
-    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    private val prefs = appContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val _themeMode = MutableStateFlow(
         runCatching { ThemeMode.valueOf(prefs.getString("theme_mode", null) ?: ThemeMode.System.name) }
             .getOrDefault(ThemeMode.System),

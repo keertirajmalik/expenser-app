@@ -51,8 +51,8 @@ class BackupViewModel(
 
     private fun run(errorMessage: String, block: suspend () -> String) {
         if (_busy.value) return
+        _busy.value = true
         viewModelScope.launch {
-            _busy.value = true
             _message.value = runCatching { block() }.getOrElse {
                 Log.e(TAG, errorMessage, it)
                 errorMessage
