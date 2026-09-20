@@ -51,6 +51,17 @@ private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyy
 private val MONTH_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
 
 /**
+ * "2026-09-03" -> "03 Sep 2026", falling back to the raw text instead of throwing.
+ *
+ * BackupCodec rejects non-ISO dates on import, so this should be unreachable. It stays
+ * because the failure it guards is disproportionate: the date is formatted inside a
+ * LazyColumn row, so one malformed value - from an older build, a hand-edited database -
+ * took down the whole list and every restart with it, with no way back from inside the app.
+ */
+private fun displayDate(iso: String): String =
+    runCatching { LocalDate.parse(iso).format(DISPLAY) }.getOrDefault(iso)
+
+/**
  * The list UI shared by Expense / Income / Investment. Everything type-specific
  * arrives through parameters or [viewModel]; behaviour (search, filters, sort,
  * month scope, swipe-to-delete, add/edit sheet) is identical.
@@ -232,7 +243,7 @@ private fun TransactionRow(item: TransactionListItem, accent: Color, onClick: ()
             Column(modifier = Modifier.weight(1f)) {
                 Text(txn.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${item.categoryName} · ${LocalDate.parse(txn.date).format(DISPLAY)}",
+                    "${item.categoryName} · ${displayDate(txn.date)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

@@ -4,6 +4,7 @@ import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.db.entity.TransactionEntity
 import com.expenser.app.data.model.EntryType
 import java.time.Instant
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /** The full contents of a backup: every category and transaction. */
@@ -19,6 +20,14 @@ data class BackupData(
 object BackupCodec {
 
     const val VERSION = 1
+
+    /**
+     * Exactly four digits, two, two. Stricter than [LocalDate.parse], which also accepts
+     * signed years outside that width ("+10000-01-01"), because the rest of the app leans
+     * on these strings being uniform: range filters compare them lexicographically, and
+     * that only equals chronological order while every date is the same shape.
+     */
+    private val ISO_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
 
     fun encode(data: BackupData): String = buildString {
         append('{')
@@ -101,7 +110,7 @@ object BackupCodec {
             name = m.str("name"),
             amountMinor = m.long("amountMinor"),
             categoryId = m.str("categoryId"),
-            date = m.str("date"),
+            date = m.isoDate("date"),
             note = m.strOrNull("note"),
             type = m.entryType("type"),
             userId = m.strOrNull("userId") ?: "",
@@ -124,4 +133,20 @@ object BackupCodec {
 
     private fun Map<*, *>.long(key: String): Long =
         (this[key] as? Number)?.toLong() ?: throw IllegalArgumentException("Missing or invalid '$key'.")
+
+    /**
+     * A stored date, validated here because this is the only way foreign data enters the
+     * database. Everything downstream treats [com.expenser.app.data.db.entity.TransactionEntity.date]
+     * as a real ISO date and would otherwise fail far from the cause: the transaction list
+     * and the edit sheet both format it, so one bad row used to throw
+     * [java.time.format.DateTimeParseException] on every render - and being persisted, it
+     * survived restarts, leaving the screen permanently broken.
+     */
+    private fun Map<*, *>.isoDate(key: String): String {
+        val raw = str(key)
+        require(ISO_DATE.matches(raw) && runCatching { LocalDate.parse(raw) }.isSuccess) {
+            "'$key' must be a yyyy-MM-dd date, but was \"$raw\"."
+        }
+        return raw
+    }
 }

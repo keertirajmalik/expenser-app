@@ -122,6 +122,22 @@ class TransactionFiltersTest {
     }
 
     @Test
+    fun `a malformed date is excluded from a range rather than throwing`() {
+        // BackupCodec rejects these on import now, but filtering must degrade rather than
+        // crash for rows that predate that check: this ran per row inside a StateFlow
+        // transform, so one bad value took out the whole list and the dashboard.
+        val withJunk = sample + item("Junk", 700, "not-a-date")
+
+        val scoped = withJunk.applyFilter(TransactionFilter(), YearMonth.of(2026, 9))
+        assertEquals(listOf("Coffee", "Rent"), names(scoped))
+
+        // All-time has no bounds to compare against, so the row is kept and just sorts oddly.
+        assertEquals(4, withJunk.applyFilter(TransactionFilter(), null).size)
+        assertEquals(4, withJunk.scopeToMonth(null).size)
+        assertEquals(2, withJunk.scopeToMonth(YearMonth.of(2026, 9)).size)
+    }
+
+    @Test
     fun `totalMinor sums the filtered rows`() {
         val septemberTotal = sample.applyFilter(TransactionFilter(), YearMonth.of(2026, 9)).totalMinor()
         assertEquals(100_500, septemberTotal)

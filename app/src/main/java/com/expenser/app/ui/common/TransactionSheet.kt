@@ -40,10 +40,12 @@ import java.time.format.DateTimeFormatter
 private val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 
+private fun parseOrNull(iso: String): LocalDate? = runCatching { LocalDate.parse(iso) }.getOrNull()
+
 /** LocalDate isn't bundleable; round-trip it through its ISO form. */
 private val LocalDateSaver = Saver<LocalDate, String>(
     save = { it.toString() },
-    restore = { runCatching { LocalDate.parse(it) }.getOrNull() },
+    restore = ::parseOrNull,
 )
 
 /**
@@ -68,7 +70,9 @@ fun TransactionSheet(
     var amount by rememberSaveable { mutableStateOf(editing?.let { minorToInput(it.amountMinor) } ?: "") }
     var categoryId by rememberSaveable { mutableStateOf(editing?.categoryId) }
     var date by rememberSaveable(stateSaver = LocalDateSaver) {
-        mutableStateOf(editing?.date?.let { LocalDate.parse(it) } ?: LocalDate.now())
+        // Same fallback as the list: a row whose date predates the import validation
+        // should open on today rather than crashing the sheet.
+        mutableStateOf(editing?.date?.let(::parseOrNull) ?: LocalDate.now())
     }
     var note by rememberSaveable { mutableStateOf(editing?.note ?: "") }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
