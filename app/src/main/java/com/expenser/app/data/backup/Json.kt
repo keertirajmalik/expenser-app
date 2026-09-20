@@ -1,0 +1,159 @@
+package com.expenser.app.data.backup
+
+/**
+ * A tiny, dependency-free JSON reader/writer. The app targets an offline build
+ * with no serialization library, and `org.json` / `android.util.Json*` aren't
+ * available to JVM unit tests — so backup encoding lives in pure Kotlin that we
+ * can test directly.
+ *
+ * [parse] returns nested [Map]s / [List]s / [String] / [Long] / [Double] /
+ * [Boolean] / null. Encoding is done by callers with [quote].
+ */
+internal object Json {
+
+    fun quote(value: String): String = buildString(value.length + 2) {
+        append('"')
+        for (c in value) {
+            when (c) {
+                '"' -> append("\\\"")
+                '\\' -> append("\\\\")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                else -> if (c < ' ') append("\\u%04x".format(c.code)) else append(c)
+            }
+        }
+        append('"')
+    }
+
+    fun parse(text: String): Any? = Parser(text).parse()
+
+    private class Parser(private val s: String) {
+        private var i = 0
+
+        fun parse(): Any? {
+            val v = value()
+            skipWs()
+            if (i < s.length) fail("unexpected trailing content")
+            return v
+        }
+
+        private fun value(): Any? {
+            skipWs()
+            if (i >= s.length) fail("unexpected end of input")
+            return when (s[i]) {
+                '{' -> obj()
+                '[' -> arr()
+                '"' -> str()
+                't', 'f' -> bool()
+                'n' -> nul()
+                else -> num()
+            }
+        }
+
+        private fun obj(): Map<String, Any?> {
+            expect('{')
+            val m = LinkedHashMap<String, Any?>()
+            if (peek() == '}') { i++; return m }
+            while (true) {
+                skipWs()
+                val key = str()
+                expect(':')
+                m[key] = value()
+                when (peek()) {
+                    ',' -> i++
+                    '}' -> { i++; return m }
+                    else -> fail("expected ',' or '}'")
+                }
+            }
+        }
+
+        private fun arr(): List<Any?> {
+            expect('[')
+            val l = ArrayList<Any?>()
+            if (peek() == ']') { i++; return l }
+            while (true) {
+                l.add(value())
+                when (peek()) {
+                    ',' -> i++
+                    ']' -> { i++; return l }
+                    else -> fail("expected ',' or ']'")
+                }
+            }
+        }
+
+        private fun str(): String {
+            expect('"')
+            val sb = StringBuilder()
+            while (true) {
+                if (i >= s.length) fail("unterminated string")
+                when (val c = s[i++]) {
+                    '"' -> return sb.toString()
+                    '\\' -> {
+                        if (i >= s.length) fail("bad escape")
+                        when (val e = s[i++]) {
+                            '"' -> sb.append('"')
+                            '\\' -> sb.append('\\')
+                            '/' -> sb.append('/')
+                            'n' -> sb.append('\n')
+                            'r' -> sb.append('\r')
+                            't' -> sb.append('\t')
+                            'b' -> sb.append('\b')
+                            'f' -> sb.append('\u000C')
+                            'u' -> {
+                                if (i + 4 > s.length) fail("bad unicode escape")
+                                sb.append(s.substring(i, i + 4).toInt(16).toChar())
+                                i += 4
+                            }
+                            else -> fail("bad escape '\\$e'")
+                        }
+                    }
+                    else -> sb.append(c)
+                }
+            }
+        }
+
+        private fun bool(): Boolean = when {
+            s.startsWith("true", i) -> { i += 4; true }
+            s.startsWith("false", i) -> { i += 5; false }
+            else -> fail("invalid literal")
+        }
+
+        private fun nul(): Any? {
+            if (s.startsWith("null", i)) { i += 4; return null }
+            fail("invalid literal")
+        }
+
+        /** Integer literals become [Long], everything else [Double]. */
+        private fun num(): Any {
+            val start = i
+            if (i < s.length && s[i] == '-') i++
+            while (i < s.length && s[i].isDigit()) i++
+            var double = false
+            if (i < s.length && s[i] == '.') { double = true; i++; while (i < s.length && s[i].isDigit()) i++ }
+            if (i < s.length && (s[i] == 'e' || s[i] == 'E')) {
+                double = true; i++
+                if (i < s.length && (s[i] == '+' || s[i] == '-')) i++
+                while (i < s.length && s[i].isDigit()) i++
+            }
+            val token = s.substring(start, i)
+            if (token.isEmpty() || token == "-") fail("invalid number")
+            return if (double) token.toDouble() else (token.toLongOrNull() ?: token.toDouble())
+        }
+
+        private fun peek(): Char { skipWs(); return if (i < s.length) s[i] else '\u0000' }
+
+        private fun expect(c: Char) {
+            skipWs()
+            if (i >= s.length || s[i] != c) fail("expected '$c'")
+            i++
+        }
+
+        private fun skipWs() { while (i < s.length && s[i].isWhitespace()) i++ }
+
+        private fun fail(message: String): Nothing =
+            throw IllegalArgumentException("Invalid JSON at position $i: $message")
+    }
+}

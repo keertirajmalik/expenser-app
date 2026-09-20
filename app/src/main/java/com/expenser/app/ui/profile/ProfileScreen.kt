@@ -179,6 +179,8 @@ fun ProfileScreen(
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Save") }
+
+            BackupSection(snackbarHostState = snackbarHostState)
         }
     }
 }

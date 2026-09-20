@@ -22,4 +22,14 @@ interface CategoryDao {
     /** Throws SQLiteConstraintException if the category is referenced by a transaction. */
     @Delete
     suspend fun delete(category: CategoryEntity)
+
+    /** One-shot snapshot for backup export. */
+    @Query("SELECT * FROM categories")
+    suspend fun getAll(): List<CategoryEntity>
+
+    @Upsert
+    suspend fun upsertAll(categories: List<CategoryEntity>)
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAll()
 }

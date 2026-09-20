@@ -26,11 +26,12 @@ class DashboardViewModel(
     private val onMonthChange: (YearMonth?) -> Unit,
 ) : ViewModel() {
 
-    // Every transaction in the selected month; all totals/breakdowns derive from this.
-    private val scoped: StateFlow<List<TransactionListItem>> =
+    // Every transaction in the selected month, grouped by type; all totals/breakdowns
+    // derive from this so the split by type only happens once per emission.
+    private val byType: StateFlow<Map<EntryType, List<TransactionListItem>>> =
         combine(transactions.observeAllWithCategory(), selectedMonth) { list, month ->
-            list.scopeToMonth(month)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            list.scopeToMonth(month).groupBy { it.transaction.type }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val totalExpenseMinor: StateFlow<Long> = totalFor(EntryType.Expense)
     val totalIncomeMinor: StateFlow<Long> = totalFor(EntryType.Income)
@@ -43,12 +44,12 @@ class DashboardViewModel(
     fun selectMonth(month: YearMonth?) = onMonthChange(month)
 
     private fun totalFor(type: EntryType): StateFlow<Long> =
-        scoped.map { items -> items.filter { it.transaction.type == type }.totalMinor() }
+        byType.map { it[type].orEmpty().totalMinor() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
     private fun byCategory(type: EntryType): StateFlow<List<Pair<String, Long>>> =
-        scoped.map { items ->
-            items.filter { it.transaction.type == type }
+        byType.map { map ->
+            map[type].orEmpty()
                 .groupBy { it.categoryName }
                 .map { (name, rows) -> name to rows.totalMinor() }
                 .sortedByDescending { it.second }

@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.expenser.app.data.db.ExpenserDatabase
 import com.expenser.app.data.db.entity.UserEntity
 import com.expenser.app.data.model.ThemeMode
+import com.expenser.app.data.repo.BackupRepository
 import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.TransactionRepository
 import com.expenser.app.data.repo.UserRepository
@@ -49,6 +50,7 @@ class AppContainer(context: Context) {
     val categoryRepository = CategoryRepository(db.categoryDao(), ::currentUserId)
     val transactionRepository = TransactionRepository(db.transactionDao(), ::currentUserId)
     val userRepository = UserRepository(db.userDao(), ::currentUserId)
+    val backupRepository = BackupRepository(db, db.categoryDao(), db.transactionDao(), ::currentUserId)
 
     // App-wide time scope shared by the dashboard and every transaction list.
     // null = all time. Defaults to the current month for everyday budgeting.
