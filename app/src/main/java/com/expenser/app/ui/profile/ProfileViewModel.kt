@@ -60,11 +60,6 @@ class ProfileViewModel(
 
     fun consumeMessage() { _message.value = null }
 
-    /** Drop any live preview left over when leaving the screen without saving. */
-    override fun onCleared() {
-        onPreviewTheme(null)
-    }
-
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

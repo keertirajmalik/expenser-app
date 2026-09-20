@@ -32,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,9 +72,15 @@ fun ProfileScreen(
     var imagePath by remember(user?.id) { mutableStateOf(user?.image) }
 
     // Live theme preview: tapping a chip previews it app-wide; the saved theme is
-    // restored when leaving this screen unless Save was pressed (viewModel.onCleared()).
+    // restored when leaving this screen unless Save was pressed. The preview lives on
+    // AppContainer (app-wide), so it must be cleared on dispose, not on the ViewModel's
+    // onCleared() - that only fires once the nav backstack entry is destroyed (e.g. on
+    // back-press), not when navigating forward to Categories while the entry survives.
     val previewTheme by viewModel.previewTheme.collectAsStateWithLifecycle()
     val currentTheme = previewTheme ?: themeMode
+    DisposableEffect(Unit) {
+        onDispose { viewModel.previewTheme(null) }
+    }
     // Pending currency choice; applied on Save (no live preview needed here).
     val savedCurrency by viewModel.currency.collectAsStateWithLifecycle()
     var selectedCurrency by remember { mutableStateOf(savedCurrency) }
