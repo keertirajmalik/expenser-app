@@ -38,7 +38,7 @@ fun DashboardScreen(
     val totalExpense by viewModel.totalExpenseMinor.collectAsStateWithLifecycle()
     val totalIncome by viewModel.totalIncomeMinor.collectAsStateWithLifecycle()
     val totalInvestment by viewModel.totalInvestmentMinor.collectAsStateWithLifecycle()
-    val netWorth = totalIncome - totalExpense
+    val netWorthBreakdown by viewModel.netWorthBreakdown.collectAsStateWithLifecycle()
 
     val incomeByCategory by viewModel.incomeByCategory.collectAsStateWithLifecycle()
     val expenseByCategory by viewModel.expenseByCategory.collectAsStateWithLifecycle()
@@ -75,14 +75,13 @@ fun DashboardScreen(
             }
             item {
                 ChartCard("Net worth") {
-                    val (nwData, nwColors) = if (netWorth >= 0) {
-                        listOf("Expense" to totalExpense, "Net worth" to netWorth) to
-                            listOf(MaterialTheme.colorScheme.error, entryTypeColor(EntryType.Income))
-                    } else {
-                        listOf("Income" to totalIncome, "Overspent" to -netWorth) to
-                            listOf(entryTypeColor(EntryType.Income), MaterialTheme.colorScheme.error)
-                    }
-                    DonutChart(nwData, colors = nwColors)
+                    DonutChart(
+                        data = listOf(
+                            netWorthBreakdown.deficitLabel to netWorthBreakdown.deficitMinor,
+                            netWorthBreakdown.surplusLabel to netWorthBreakdown.surplusMinor,
+                        ),
+                        colors = listOf(MaterialTheme.colorScheme.error, entryTypeColor(EntryType.Income)),
+                    )
                 }
             }
             item {

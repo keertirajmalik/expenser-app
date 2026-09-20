@@ -19,6 +19,29 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.YearMonth
 
+/**
+ * How the net-worth donut splits into two slices. Solvent (income covers expense)
+ * highlights the remaining headroom; insolvent highlights the overspend. The
+ * deficit slice is always the "red" one, the surplus slice always the "green" one -
+ * callers only need to pick colors, not decide which label goes where.
+ */
+data class NetWorthBreakdown(
+    val deficitLabel: String,
+    val deficitMinor: Long,
+    val surplusLabel: String,
+    val surplusMinor: Long,
+)
+
+/** Pure rule behind [NetWorthBreakdown] — no Flow/ViewModel, so it's plain-JUnit testable. */
+fun netWorthBreakdown(totalIncomeMinor: Long, totalExpenseMinor: Long): NetWorthBreakdown {
+    val netWorth = totalIncomeMinor - totalExpenseMinor
+    return if (netWorth >= 0) {
+        NetWorthBreakdown("Expense", totalExpenseMinor, "Net worth", netWorth)
+    } else {
+        NetWorthBreakdown("Overspent", -netWorth, "Income", totalIncomeMinor)
+    }
+}
+
 class DashboardViewModel(
     transactions: TransactionRepository,
     /** Global month scope, shared with the transaction lists (null = all time). */
@@ -36,6 +59,10 @@ class DashboardViewModel(
     val totalExpenseMinor: StateFlow<Long> = totalFor(EntryType.Expense)
     val totalIncomeMinor: StateFlow<Long> = totalFor(EntryType.Income)
     val totalInvestmentMinor: StateFlow<Long> = totalFor(EntryType.Investment)
+
+    val netWorthBreakdown: StateFlow<NetWorthBreakdown> =
+        combine(totalIncomeMinor, totalExpenseMinor, ::netWorthBreakdown)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), netWorthBreakdown(0L, 0L))
 
     val expenseByCategory: StateFlow<List<Pair<String, Long>>> = byCategory(EntryType.Expense)
     val incomeByCategory: StateFlow<List<Pair<String, Long>>> = byCategory(EntryType.Income)
