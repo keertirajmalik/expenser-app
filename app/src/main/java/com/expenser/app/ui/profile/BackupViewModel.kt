@@ -2,6 +2,7 @@ package com.expenser.app.ui.profile
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -50,7 +51,10 @@ class BackupViewModel(private val backup: BackupRepository) : ViewModel() {
         if (_busy.value) return
         viewModelScope.launch {
             _busy.value = true
-            _message.value = runCatching { block() }.getOrElse { errorMessage }
+            _message.value = runCatching { block() }.getOrElse {
+                Log.e(TAG, errorMessage, it)
+                errorMessage
+            }
             _busy.value = false
         }
     }
@@ -68,6 +72,8 @@ class BackupViewModel(private val backup: BackupRepository) : ViewModel() {
         }
 
     companion object {
+        private const val TAG = "BackupViewModel"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ExpenserApp

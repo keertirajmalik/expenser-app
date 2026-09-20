@@ -24,6 +24,12 @@ class BackupRepository(
         )
 
     suspend fun restore(data: BackupData) {
+        val categoryIds = data.categories.mapTo(HashSet()) { it.id }
+        val danglingCategoryId = data.transactions.map { it.categoryId }.firstOrNull { it !in categoryIds }
+        require(danglingCategoryId == null) {
+            "Backup references category '$danglingCategoryId', which isn't in the backup."
+        }
+
         // Re-home imported rows onto this device's local user so a backup from
         // another install still lines up with the seeded user.
         val userId = currentUserId()

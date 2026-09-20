@@ -55,8 +55,11 @@ object BackupCodec {
     fun decode(text: String): BackupData {
         val root = Json.parse(text) as? Map<*, *>
             ?: throw IllegalArgumentException("Not an Expenser backup file.")
-        require(root.containsKey("version") && root.containsKey("transactions")) {
-            "Not an Expenser backup file."
+        require(root.containsKey("transactions")) { "Not an Expenser backup file." }
+        val version = (root["version"] as? Number)?.toInt()
+            ?: throw IllegalArgumentException("Not an Expenser backup file.")
+        require(version <= VERSION) {
+            "This backup was made with a newer version of the app and can't be read here."
         }
         val categories = (root["categories"] as? List<*> ?: emptyList<Any?>()).map { it.toCategory() }
         val transactions = (root["transactions"] as? List<*> ?: emptyList<Any?>()).map { it.toTransaction() }
