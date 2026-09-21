@@ -12,9 +12,15 @@ import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.TransactionRepository
 import com.expenser.app.data.repo.UserRepository
 import com.expenser.app.ui.common.setCurrencyCode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.YearMonth
@@ -30,7 +36,7 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
     private val db = Room.databaseBuilder(
-        context.applicationContext,
+        appContext,
         ExpenserDatabase::class.java,
         "expenser.db",
     ).build()
@@ -58,17 +64,43 @@ class AppContainer(context: Context) {
     val userRepository = UserRepository(db.userDao(), ::currentUserId)
     val backupRepository = BackupRepository(db, db.categoryDao(), db.transactionDao(), ::currentUserId)
 
+    /** Process-lifetime scope, only for sharing state that outlives any one screen. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * The single local user - name and avatar.
+     *
+     * Shared here rather than from a ViewModel because the avatar sits in every main
+     * screen's top bar. `viewModel()` inside a NavHost resolves to the current
+     * NavBackStackEntry, so a ViewModel-per-avatar meant one instance per tab, each
+     * collecting this same row and each holding the profile screen's whole surface -
+     * theme preview, currency commit, profile persistence - to draw a 32dp circle.
+     */
+    val user: StateFlow<UserEntity?> =
+        userRepository.observeUser().stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
     // App-wide time scope shared by the dashboard and every transaction list.
     // null = all time. Defaults to the current month for everyday budgeting.
     private val _selectedMonth = MutableStateFlow<YearMonth?>(YearMonth.now())
     val selectedMonth: StateFlow<YearMonth?> = _selectedMonth.asStateFlow()
 
+    // Whether the scope above is the calendar default or something the user chose. An
+    // untouched default has to keep following the calendar: the process can outlive a
+    // month boundary, and YearMonth.now() was only ever read once, at construction.
+    private var monthChosenByUser = false
+
     fun setSelectedMonth(month: YearMonth?) {
+        monthChosenByUser = true
         _selectedMonth.value = month
     }
 
+    /** Re-point an untouched default at the current month. Called when the app foregrounds. */
+    fun refreshDefaultMonth() {
+        if (!monthChosenByUser) _selectedMonth.value = YearMonth.now()
+    }
+
     // Theme preference, persisted in SharedPreferences (no extra dependency).
-    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    private val prefs = appContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val _themeMode = MutableStateFlow(
         runCatching { ThemeMode.valueOf(prefs.getString("theme_mode", null) ?: ThemeMode.System.name) }
             .getOrDefault(ThemeMode.System),
@@ -99,6 +131,9 @@ class AppContainer(context: Context) {
 
     init {
         setCurrencyCode(_currency.value)
+        // [user] backs the top-bar avatar, so the row has to exist from launch rather
+        // than appearing once the profile screen is first opened.
+        scope.launch { runCatching { userRepository.ensureSeeded() } }
     }
 
     /** The single seam for changing currency: persists it and updates the live formatter. */

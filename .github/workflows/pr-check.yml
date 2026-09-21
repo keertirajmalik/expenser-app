@@ -1,0 +1,32 @@
+name: PR check
+
+on:
+  pull_request:
+    branches: [main]
+
+# A fresh push makes the in-flight run pointless; don't pay for it.
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      # Debug build only: this job exists to catch a dependency bump that
+      # breaks the build, so it needs no keystore and publishes no APK.
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      # Separate step so a compile failure and a test failure are told apart
+      # at a glance in the checks UI.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest

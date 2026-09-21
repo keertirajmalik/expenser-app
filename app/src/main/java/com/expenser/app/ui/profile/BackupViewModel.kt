@@ -51,11 +51,15 @@ class BackupViewModel(
 
     private fun run(errorMessage: String, block: suspend () -> String) {
         if (_busy.value) return
+        _busy.value = true
         viewModelScope.launch {
-            _busy.value = true
             _message.value = runCatching { block() }.getOrElse {
                 Log.e(TAG, errorMessage, it)
-                errorMessage
+                // BackupCodec.decode and BackupRepository.restore reject bad input with
+                // IllegalArgumentException carrying text written for the user ("This backup
+                // was made with a newer version of the app..."). Show that; anything else is
+                // unexpected and gets the generic line rather than leaking internals.
+                (it as? IllegalArgumentException)?.message ?: errorMessage
             }
             _busy.value = false
         }

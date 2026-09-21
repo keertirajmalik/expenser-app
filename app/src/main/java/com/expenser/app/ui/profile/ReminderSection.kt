@@ -1,7 +1,10 @@
 package com.expenser.app.ui.profile
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -35,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -55,9 +60,28 @@ fun ReminderSection(
     val context = LocalContext.current
     var showTimePicker by remember { mutableStateOf(false) }
 
+    // Re-read on every resume so returning from system settings updates the warning below.
+    var permissionGranted by remember { mutableStateOf(hasNotificationPermission(context)) }
+    LifecycleResumeEffect(Unit) {
+        permissionGranted = hasNotificationPermission(context)
+        onPauseOrDispose { }
+    }
+
+    // The request dialog only appears once; after that launch() returns denied immediately
+    // and the switch would simply refuse to move with no explanation.
+    var requestDenied by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> onEnabledChange(granted) }
+    ) { granted ->
+        permissionGranted = granted
+        requestDenied = !granted
+        onEnabledChange(granted)
+    }
+
+    // A reminder can be switched on and then have notifications revoked in system
+    // settings. The alarm still fires, ReminderNotifier bails, and nothing is shown -
+    // so say so rather than claiming "On, every day".
+    val blocked = !permissionGranted && (enabled || requestDenied)
 
     HorizontalDivider(modifier = Modifier.fillMaxWidth())
     Column(
@@ -78,17 +102,26 @@ fun ReminderSection(
             Column(modifier = Modifier.weight(1f)) {
                 Text("Remind me to add transactions", style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    if (enabled) "On, every day" else "Off",
+                    when {
+                        blocked -> "Notifications are turned off for Expenser"
+                        enabled -> "On, every day"
+                        else -> "Off"
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (blocked) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
             Switch(
                 checked = enabled,
                 onCheckedChange = { on ->
                     if (!on) {
+                        requestDenied = false
                         onEnabledChange(false)
-                    } else if (hasNotificationPermission(context)) {
+                    } else if (permissionGranted) {
                         onEnabledChange(true)
                     } else {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -102,6 +135,15 @@ fun ReminderSection(
         ) {
             Icon(Icons.Filled.Schedule, contentDescription = null)
             Text("  Reminder time · ${LocalTime.of(hour, minute).format(TIME_LABEL)}")
+        }
+        if (blocked) {
+            OutlinedButton(
+                onClick = { context.startActivity(notificationSettingsIntent(context)) },
+                modifier = Modifier.align(Alignment.Start),
+            ) {
+                Icon(Icons.Filled.NotificationsOff, contentDescription = null)
+                Text("  Open notification settings")
+            }
         }
     }
 
@@ -119,9 +161,23 @@ fun ReminderSection(
     }
 }
 
+/**
+ * Whether this app may post notifications.
+ *
+ * POST_NOTIFICATIONS only exists from API 33; before that, posting needs no runtime grant
+ * and the user's only control is the system toggle, which this check cannot see. Treating
+ * older versions as granted is the honest answer for the switch - the reminder will post -
+ * and [ReminderNotifier] re-checks before every notification either way.
+ */
 private fun hasNotificationPermission(context: android.content.Context): Boolean =
-    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
         PackageManager.PERMISSION_GRANTED
+
+/** The app's own notification settings - the only route back once a request is denied twice. */
+private fun notificationSettingsIntent(context: android.content.Context): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -66,6 +66,42 @@ class BackupCodecTest {
     }
 
     @Test
+    fun `decode rejects a transaction whose date is not an ISO date`() {
+        for (bad in listOf("", "not-a-date", "2026-13-45", "2026/09/01", "03-09-2026")) {
+            val e = assertThrows("accepted \"$bad\"", IllegalArgumentException::class.java) {
+                BackupCodec.decode(backupWithDate(bad))
+            }
+            assertTrue(e.message!!, e.message!!.contains("yyyy-MM-dd"))
+        }
+    }
+
+    @Test
+    fun `decode rejects dates that parse but break lexicographic ordering`() {
+        // LocalDate.parse takes both of these; comparing them as strings against a
+        // zero-padded range would not order correctly, so the codec is stricter.
+        for (bad in listOf("+10000-01-01", "2026-9-01")) {
+            assertThrows("accepted \"$bad\"", IllegalArgumentException::class.java) {
+                BackupCodec.decode(backupWithDate(bad))
+            }
+        }
+    }
+
+    @Test
+    fun `decode accepts a well-formed date at the calendar edges`() {
+        for (good in listOf("2026-01-01", "2026-12-31", "2024-02-29", "0001-01-01")) {
+            assertEquals(good, BackupCodec.decode(backupWithDate(good)).transactions.single().date)
+        }
+    }
+
+    private fun backupWithDate(date: String): String =
+        """
+        {"version":1,"categories":[],"transactions":[
+          {"id":"t1","name":"Coffee","amountMinor":350,"categoryId":"c1",
+           "date":"$date","note":null,"type":"Expense","userId":"u1"}
+        ]}
+        """.trimIndent()
+
+    @Test
     fun `decode tolerates a missing categories array`() {
         val json = """{"version":1,"transactions":[]}"""
         val decoded = BackupCodec.decode(json)
