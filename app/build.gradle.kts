@@ -21,7 +21,10 @@ val keystorePath: String? = System.getenv("KEYSTORE_PATH")
 
 android {
     namespace = "com.expenser.app"
-    compileSdk = 36
+    // Ahead of targetSdk: core-ktx 1.19, navigation-compose 2.10 and compose-bom
+    // 2026.09 all refuse to link against 36. Compiling against 37 only widens the
+    // APIs available; targetSdk stays at 36 so no runtime behaviour changes apply.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.expenser.app"
