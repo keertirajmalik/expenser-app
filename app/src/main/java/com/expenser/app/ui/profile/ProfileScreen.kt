@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import com.expenser.app.ui.common.EnumDropdown
 import com.expenser.app.ui.common.SUPPORTED_CURRENCIES
 import com.expenser.app.ui.common.copyImageToInternal
 import com.expenser.app.ui.common.currencyLabel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,10 +93,13 @@ fun ProfileScreen(
     var reminderHour by remember(reminder) { mutableStateOf(reminder.hour) }
     var reminderMinute by remember(reminder) { mutableStateOf(reminder.minute) }
 
+    val scope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
-        if (uri != null) imagePath = copyImageToInternal(context, uri) ?: imagePath
+        if (uri != null) scope.launch {
+            imagePath = copyImageToInternal(context, uri) ?: imagePath
+        }
     }
 
     LaunchedEffect(message) {

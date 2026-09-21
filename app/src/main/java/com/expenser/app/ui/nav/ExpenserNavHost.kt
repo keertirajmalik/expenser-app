@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,8 +81,14 @@ fun ExpenserNavHost() {
             )
         },
     ) { padding ->
-        val openProfile = { navController.navigate(PROFILE_ROUTE) { launchSingleTop = true } }
-        val openCategories = { navController.navigate(CATEGORIES_ROUTE) { launchSingleTop = true } }
+        // Remembered so their identity is stable: a fresh lambda each recomposition
+        // would make every tab screen's parameters look changed and defeat skipping.
+        val openProfile: () -> Unit = remember(navController) {
+            { navController.navigate(PROFILE_ROUTE) { launchSingleTop = true } }
+        }
+        val openCategories: () -> Unit = remember(navController) {
+            { navController.navigate(CATEGORIES_ROUTE) { launchSingleTop = true } }
+        }
         NavHost(
             navController = navController,
             startDestination = Destination.Dashboard.route,

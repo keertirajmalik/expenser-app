@@ -5,22 +5,56 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Release version comes from the git tag, passed by CI as -PappVersion=1.2.3.
+// Local builds fall back to a 0.0.1 dev version.
+val appVersion = (findProperty("appVersion") as String? ?: "0.0.1").removePrefix("v")
+val appVersionParts = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
+val appVersionCode = (
+    appVersionParts.getOrElse(0) { 0 } * 1_000_000 +
+        appVersionParts.getOrElse(1) { 0 } * 1_000 +
+        appVersionParts.getOrElse(2) { 0 }
+    ).coerceAtLeast(1)
+
+// Signing credentials are injected by CI. They are absent on a dev machine, so
+// local release builds stay unsigned rather than failing.
+val keystorePath: String? = System.getenv("KEYSTORE_PATH")
+
 android {
     namespace = "com.expenser.app"
-    compileSdk = 36
+    // Ahead of targetSdk: core-ktx 1.19, navigation-compose 2.10 and compose-bom
+    // 2026.09 all refuse to link against 36. Compiling against 37 only widens the
+    // APIs available; targetSdk stays at 36 so no runtime behaviour changes apply.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.expenser.app"
-        minSdk = 35
-        //noinspection OldTargetApi
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // Android 8.0. The real floor the code imposes: java.time and
+        // NotificationChannel both land at 26, and lint reports no NewApi below that -
+        // the one API above it is POST_NOTIFICATIONS (33), which ReminderSection guards.
+        minSdk = 26
+        // Play requires 36 for new apps and updates as of 2026-08-31. The app was
+        // already edge-to-edge and overrides no onBackPressed, so nothing in the
+        // target-36 behaviour changes applies to it.
+        targetSdk = 36
+        versionCode = appVersionCode
+        versionName = appVersion
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -35,6 +69,11 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+ksp {
+    // Room writes schemas/<version>.json here; committed so migrations can diff against it.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 kotlin {

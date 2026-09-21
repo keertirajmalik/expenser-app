@@ -12,10 +12,18 @@ import com.expenser.app.ui.nav.ExpenserNavHost
 import com.expenser.app.ui.theme.ExpenserTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val container by lazy { (application as ExpenserApp).container }
+
+    override fun onStart() {
+        super.onStart()
+        // Picks up a month rollover that happened while the process sat in the background.
+        container.refreshDefaultMonth()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val container = (application as ExpenserApp).container
         setContent {
             val saved by container.themeMode.collectAsStateWithLifecycle()
             val preview by container.previewTheme.collectAsStateWithLifecycle()

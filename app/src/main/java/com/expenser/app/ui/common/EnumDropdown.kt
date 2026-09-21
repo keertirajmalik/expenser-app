@@ -13,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 
 /** A Material 3 exposed dropdown for picking one option from a fixed list. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,8 +41,7 @@ fun <T> EnumDropdown(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-                .testTag("dropdown_$label"),
+                .fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->

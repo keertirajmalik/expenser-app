@@ -4,9 +4,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!--
+      allowBackup is off for now: auto-backup would copy the unencrypted expenser.db off
+      the device, and the app already offers an explicit JSON export. The cost is that a
+      phone switch loses data unless the user exported first, so this is worth revisiting
+      with dataExtractionRules that exclude only the database and the avatars directory.
+      See https://github.com/keertirajmalik/expenser-app/issues/18
+    -->
     <application
         android:name=".ExpenserApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
@@ -23,9 +30,17 @@
             </intent-filter>
         </activity>
 
+        <!--
+          exported="false": BOOT_COMPLETED is a protected system broadcast and reaches
+          manifest receivers regardless, and the daily alarm arrives through a
+          PendingIntent this app builds against this exact component, which needs no
+          export either. Exported, any installed app could invoke it directly.
+          ReminderScheduler.ACTION_SHOW deliberately has no intent-filter - the alarm
+          intent is explicit, and a filter would only widen the surface again.
+        -->
         <receiver
             android:name=".data.reminder.ReminderReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>

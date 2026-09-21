@@ -2,7 +2,6 @@ package com.expenser.app.ui.common
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,11 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.expenser.app.ui.theme.ChartDark
-import com.expenser.app.ui.theme.ChartLight
-
-@Composable
-fun chartPalette(): List<Color> = if (isSystemInDarkTheme()) ChartDark else ChartLight
 
 /** A light→dark ramp of [base], one shade per slice, so a chart varies within its type's hue. */
 fun typeShades(base: Color, count: Int): List<Color> {

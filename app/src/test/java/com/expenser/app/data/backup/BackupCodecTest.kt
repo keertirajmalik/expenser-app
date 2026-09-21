@@ -28,6 +28,28 @@ class BackupCodecTest {
         assertEquals(sample.transactions, decoded.transactions)
     }
 
+    /**
+     * The wire format is a file users keep, so it is a contract, not an implementation
+     * detail: a reordered or renamed key still round-trips within one build but silently
+     * stops matching the backups already on disk. Now that the keys come from
+     * `Category.all` / `Transaction.all`, one list edit could do that, so pin the bytes.
+     */
+    @Test
+    fun `encode emits the documented keys, in order`() {
+        val json = BackupCodec.encode(sample)
+            .replace(Regex(""""exportedAt":"[^"]*""""), "\"exportedAt\":\"?\"")
+        assertEquals(
+            """{"version":1,"exportedAt":"?","categories":[""" +
+                """{"id":"c1","name":"Food","type":"Expense","description":"Groceries & dining","userId":"u1"},""" +
+                """{"id":"c2","name":"Salary","type":"Income","description":null,"userId":"u1"}""" +
+                """],"transactions":[""" +
+                """{"id":"t1","name":"Coffee","amountMinor":350,"categoryId":"c1","date":"2026-09-03","note":null,"type":"Expense","userId":"u1"},""" +
+                """{"id":"t2","name":"Pay","amountMinor":500000,"categoryId":"c2","date":"2026-09-01","note":"September","type":"Income","userId":"u1"}""" +
+                """]}""",
+            json,
+        )
+    }
+
     @Test
     fun `strings with quotes, commas, newlines and unicode survive`() {
         val tricky = BackupData(
@@ -64,6 +86,42 @@ class BackupCodecTest {
     fun `decode rejects malformed json`() {
         assertThrows(IllegalArgumentException::class.java) { BackupCodec.decode("{ not json") }
     }
+
+    @Test
+    fun `decode rejects a transaction whose date is not an ISO date`() {
+        for (bad in listOf("", "not-a-date", "2026-13-45", "2026/09/01", "03-09-2026")) {
+            val e = assertThrows("accepted \"$bad\"", IllegalArgumentException::class.java) {
+                BackupCodec.decode(backupWithDate(bad))
+            }
+            assertTrue(e.message!!, e.message!!.contains("yyyy-MM-dd"))
+        }
+    }
+
+    @Test
+    fun `decode rejects dates that parse but break lexicographic ordering`() {
+        // LocalDate.parse takes both of these; comparing them as strings against a
+        // zero-padded range would not order correctly, so the codec is stricter.
+        for (bad in listOf("+10000-01-01", "2026-9-01")) {
+            assertThrows("accepted \"$bad\"", IllegalArgumentException::class.java) {
+                BackupCodec.decode(backupWithDate(bad))
+            }
+        }
+    }
+
+    @Test
+    fun `decode accepts a well-formed date at the calendar edges`() {
+        for (good in listOf("2026-01-01", "2026-12-31", "2024-02-29", "0001-01-01")) {
+            assertEquals(good, BackupCodec.decode(backupWithDate(good)).transactions.single().date)
+        }
+    }
+
+    private fun backupWithDate(date: String): String =
+        """
+        {"version":1,"categories":[],"transactions":[
+          {"id":"t1","name":"Coffee","amountMinor":350,"categoryId":"c1",
+           "date":"$date","note":null,"type":"Expense","userId":"u1"}
+        ]}
+        """.trimIndent()
 
     @Test
     fun `decode tolerates a missing categories array`() {
