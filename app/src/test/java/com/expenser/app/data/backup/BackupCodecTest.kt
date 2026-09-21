@@ -28,6 +28,28 @@ class BackupCodecTest {
         assertEquals(sample.transactions, decoded.transactions)
     }
 
+    /**
+     * The wire format is a file users keep, so it is a contract, not an implementation
+     * detail: a reordered or renamed key still round-trips within one build but silently
+     * stops matching the backups already on disk. Now that the keys come from
+     * `Category.all` / `Transaction.all`, one list edit could do that, so pin the bytes.
+     */
+    @Test
+    fun `encode emits the documented keys, in order`() {
+        val json = BackupCodec.encode(sample)
+            .replace(Regex(""""exportedAt":"[^"]*""""), "\"exportedAt\":\"?\"")
+        assertEquals(
+            """{"version":1,"exportedAt":"?","categories":[""" +
+                """{"id":"c1","name":"Food","type":"Expense","description":"Groceries & dining","userId":"u1"},""" +
+                """{"id":"c2","name":"Salary","type":"Income","description":null,"userId":"u1"}""" +
+                """],"transactions":[""" +
+                """{"id":"t1","name":"Coffee","amountMinor":350,"categoryId":"c1","date":"2026-09-03","note":null,"type":"Expense","userId":"u1"},""" +
+                """{"id":"t2","name":"Pay","amountMinor":500000,"categoryId":"c2","date":"2026-09-01","note":"September","type":"Income","userId":"u1"}""" +
+                """]}""",
+            json,
+        )
+    }
+
     @Test
     fun `strings with quotes, commas, newlines and unicode survive`() {
         val tricky = BackupData(
