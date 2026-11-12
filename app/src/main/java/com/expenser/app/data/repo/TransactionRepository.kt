@@ -5,6 +5,8 @@ import com.expenser.app.data.db.dao.TransactionListItem
 import com.expenser.app.data.db.entity.TransactionEntity
 import com.expenser.app.data.model.EntryType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.YearMonth
 import java.util.UUID
 
 class TransactionRepository(
@@ -16,6 +18,11 @@ class TransactionRepository(
 
     fun observeAllWithCategory(): Flow<List<TransactionListItem>> =
         transactionDao.observeAllWithCategory()
+
+    /** Total per category id within [month]; a null month means all time. */
+    fun observeTotalsByCategory(month: YearMonth?): Flow<Map<String, Long>> =
+        transactionDao.observeTotalsByCategory(month?.atDay(1)?.toString(), month?.atEndOfMonth()?.toString())
+            .map { totals -> totals.associate { it.categoryId to it.totalMinor } }
 
     /** Create (id == null) or update an existing transaction. */
     suspend fun save(

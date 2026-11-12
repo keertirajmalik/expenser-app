@@ -22,25 +22,50 @@ fun currencyLabel(code: String): String =
     runCatching { "$code (${Currency.getInstance(code).symbol})" }.getOrDefault(code)
 
 // Building a NumberFormat is expensive and formatMoney runs per row, per recomposition,
-// so keep the last one. Keyed on code + locale: both can change while the app is alive.
-// The key is read on every call, so the snapshot read on currencyCodeState still registers.
-private var formatKey: Pair<String, Locale>? = null
-private var format: NumberFormat? = null
+// so keep the last pair: the full format and its whole-unit variant. Keyed on code +
+// locale: both can change while the app is alive. The key is read on every call, so the
+// snapshot read on currencyCodeState still registers.
+private class CurrencyFormats(val full: NumberFormat, val whole: NumberFormat)
 
-private fun currencyFormat(): NumberFormat {
+private var formatKey: Pair<String, Locale>? = null
+private var formats: CurrencyFormats? = null
+
+private fun currencyFormats(): CurrencyFormats {
     val key = currencyCodeState.value to Locale.getDefault()
-    format?.let { if (formatKey == key) return it }
-    val fresh = NumberFormat.getCurrencyInstance(key.second).apply {
+    formats?.let { if (formatKey == key) return it }
+    val full = NumberFormat.getCurrencyInstance(key.second).apply {
         runCatching { currency = Currency.getInstance(key.first) }
     }
-    formatKey = key
-    format = fresh
-    return fresh
+    val whole = (full.clone() as NumberFormat).apply {
+        minimumFractionDigits = 0
+        maximumFractionDigits = 0
+    }
+    return CurrencyFormats(full, whole).also {
+        formatKey = key
+        formats = it
+    }
 }
 
 /** 1250L -> "₹12.50", using the selected currency. */
 fun formatMoney(amountMinor: Long): String =
-    currencyFormat().format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+    currencyFormats().full.format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+
+/**
+ * Like [formatMoney], but drops the fraction when it is zero: 4500000L -> "₹45,000",
+ * 1250L -> "₹12.50". For summary figures and list rows, where ".00" on every amount is
+ * noise and costs width the bento tiles don't have. Never rounds: a non-zero fraction
+ * is always shown in full.
+ */
+fun formatMoneyShort(amountMinor: Long): String {
+    val formats = currencyFormats()
+    val format = if (amountMinor % 100 == 0L) formats.whole else formats.full
+    return format.format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+}
+
+/** The selected currency's symbol in the current locale, e.g. "₹", for an amount field's prefix. */
+fun currencySymbol(): String =
+    runCatching { Currency.getInstance(currencyCodeState.value).getSymbol(Locale.getDefault()) }
+        .getOrDefault(currencyCodeState.value)
 
 /** 1250L -> "12.5" — plain editable text for an amount field (no symbol, no trailing zeros). */
 fun minorToInput(amountMinor: Long): String =

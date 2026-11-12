@@ -15,12 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -33,9 +29,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import com.expenser.app.ui.common.BentoCard
+import com.expenser.app.ui.common.RowDivider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
@@ -46,8 +45,8 @@ import java.time.format.DateTimeFormatter
 private val TIME_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
 /**
- * Stateless daily-reminder editor. Choices are staged in the parent and applied
- * on the profile's Save button, alongside name / theme / currency.
+ * Stateless daily-reminder editor, drawn as a settings card. Choices are staged in the
+ * parent and applied on the profile's Save action, alongside name / theme / currency.
  */
 @Composable
 fun ReminderSection(
@@ -83,67 +82,43 @@ fun ReminderSection(
     // so say so rather than claiming "On, every day".
     val blocked = !permissionGranted && (enabled || requestDenied)
 
-    HorizontalDivider(modifier = Modifier.fillMaxWidth())
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            "Daily reminder",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.align(Alignment.Start),
+    val onSwitch: (Boolean) -> Unit = { on ->
+        if (!on) {
+            requestDenied = false
+            onEnabledChange(false)
+        } else if (permissionGranted) {
+            onEnabledChange(true)
+        } else {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    BentoCard {
+        SettingsRow(
+            title = "Remind me to add transactions",
+            subtitle = when {
+                blocked -> "Notifications are turned off for Expenser"
+                enabled -> "One notification every day"
+                else -> "Off"
+            },
+            subtitleColor = if (blocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            // The whole row toggles, so the target is the row rather than just the switch.
+            modifier = Modifier.toggleable(value = enabled, role = Role.Switch, onValueChange = onSwitch),
+            trailing = { Switch(checked = enabled, onCheckedChange = null) },
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Remind me to add transactions", style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    when {
-                        blocked -> "Notifications are turned off for Expenser"
-                        enabled -> "On, every day"
-                        else -> "Off"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (blocked) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-            Switch(
-                checked = enabled,
-                onCheckedChange = { on ->
-                    if (!on) {
-                        requestDenied = false
-                        onEnabledChange(false)
-                    } else if (permissionGranted) {
-                        onEnabledChange(true)
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                },
-            )
-        }
-        OutlinedButton(
+        RowDivider()
+        SettingsRow(
+            title = "Reminder time",
+            value = LocalTime.of(hour, minute).format(TIME_LABEL),
             onClick = { showTimePicker = true },
-            modifier = Modifier.align(Alignment.Start),
-        ) {
-            Icon(Icons.Filled.Schedule, contentDescription = null)
-            Text("  Reminder time · ${LocalTime.of(hour, minute).format(TIME_LABEL)}")
-        }
+        )
         if (blocked) {
-            OutlinedButton(
+            RowDivider()
+            SettingsRow(
+                title = "Open notification settings",
+                icon = Icons.Filled.NotificationsOff,
                 onClick = { context.startActivity(notificationSettingsIntent(context)) },
-                modifier = Modifier.align(Alignment.Start),
-            ) {
-                Icon(Icons.Filled.NotificationsOff, contentDescription = null)
-                Text("  Open notification settings")
-            }
+            )
         }
     }
 

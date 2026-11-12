@@ -27,4 +27,12 @@ class MoneyTest {
         // Format contains the numeric portion regardless of currency symbol/locale glyph.
         assert(formatMoney(minor).contains("12.50")) { formatMoney(minor) }
     }
+
+    @Test fun short_format_drops_a_zero_fraction_but_keeps_a_real_one() {
+        // Locale-neutral: no ".00" / ",00" fraction, whatever the grouping separator is.
+        val whole = formatMoneyShort(4_500_000L)
+        assert(!whole.matches(Regex(".*[.,]00\\D*$"))) { whole }
+        assert(whole.contains("45")) { whole }
+        assertEquals(formatMoney(1250L), formatMoneyShort(1250L))
+    }
 }

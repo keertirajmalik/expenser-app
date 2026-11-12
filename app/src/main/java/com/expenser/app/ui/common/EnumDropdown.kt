@@ -24,7 +24,6 @@ fun <T> EnumDropdown(
     onSelected: (T) -> Unit,
     optionLabel: (T) -> String,
     modifier: Modifier = Modifier,
-    placeholder: String = "Select",
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
@@ -37,7 +36,6 @@ fun <T> EnumDropdown(
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
-            placeholder = { Text(placeholder) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)

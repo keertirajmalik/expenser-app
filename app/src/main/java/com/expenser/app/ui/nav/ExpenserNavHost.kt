@@ -1,7 +1,6 @@
 package com.expenser.app.ui.nav
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,12 +31,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.category.CategoryScreen
 import com.expenser.app.ui.dashboard.DashboardScreen
 import com.expenser.app.ui.expense.ExpenseScreen
@@ -45,11 +46,22 @@ import com.expenser.app.ui.income.IncomeScreen
 import com.expenser.app.ui.investment.InvestmentScreen
 import com.expenser.app.ui.profile.ProfileScreen
 
-private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
-    Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard),
-    Income("income", "Income", Icons.Filled.Payments),
-    Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong),
-    Investments("investments", "Investments", Icons.AutoMirrored.Filled.TrendingUp),
+/** Bottom-navigation tabs; [type] is the entry type a list tab shows (null for the dashboard). */
+private enum class Destination(val route: String, val label: String, val icon: ImageVector, val type: EntryType?) {
+    Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard, null),
+    Income("income", "Income", Icons.Filled.Payments, EntryType.Income),
+    Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong, EntryType.Expense),
+    Investments("investments", "Investments", Icons.AutoMirrored.Filled.TrendingUp, EntryType.Investment),
+}
+
+/**
+ * Switch tabs and drop any pushed detail screen (categories/profile). No
+ * saveState/restoreState: restoring a tab's back stack could bring a detail screen back
+ * on top, making the tap look like a no-op.
+ */
+private fun NavController.navigateToTab(route: String) = navigate(route) {
+    popUpTo(graph.findStartDestination().id) { inclusive = false }
+    launchSingleTop = true
 }
 
 private const val PROFILE_ROUTE = "profile"
@@ -69,15 +81,7 @@ fun ExpenserNavHost() {
         bottomBar = {
             FloatingNavBar(
                 selectedRoute = { route -> currentDestination?.hierarchy?.any { it.route == route } == true },
-                onSelect = { route ->
-                    // Switch tabs and drop any pushed detail screen (categories/profile).
-                    // No saveState/restoreState: restoring a tab's back stack could bring a
-                    // detail screen back on top, making the tap look like a no-op.
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
+                onSelect = navController::navigateToTab,
             )
         },
     ) { padding ->
@@ -89,12 +93,16 @@ fun ExpenserNavHost() {
         val openCategories: () -> Unit = remember(navController) {
             { navController.navigate(CATEGORIES_ROUTE) { launchSingleTop = true } }
         }
+        // Same as tapping that type's tab, so the back stack matches a tab switch.
+        val openType: (EntryType) -> Unit = remember(navController) {
+            { type -> navController.navigateToTab(Destination.entries.first { it.type == type }.route) }
+        }
         NavHost(
             navController = navController,
             startDestination = Destination.Dashboard.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Destination.Dashboard.route) { DashboardScreen(openCategories, openProfile) }
+            composable(Destination.Dashboard.route) { DashboardScreen(openCategories, openProfile, openType) }
             composable(Destination.Income.route) { IncomeScreen(openCategories, openProfile) }
             composable(Destination.Expenses.route) { ExpenseScreen(openCategories, openProfile) }
             composable(Destination.Investments.route) { InvestmentScreen(openCategories, openProfile) }
@@ -119,9 +127,7 @@ private fun FloatingNavBar(
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
             shadowElevation = 10.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
             Row(
                 modifier = Modifier.padding(6.dp),

@@ -2,21 +2,14 @@ package com.expenser.app.ui.profile
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,12 +19,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.expenser.app.ui.common.BentoCard
+import com.expenser.app.ui.common.RowDivider
 import java.time.LocalDate
 
 @Composable
@@ -63,50 +55,33 @@ fun BackupSection(
         }
     }
 
-    HorizontalDivider(modifier = Modifier.fillMaxWidth())
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            "Backup & restore",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.align(Alignment.Start),
-        )
-        Text(
-            "Save all your data to a file you can keep or share, and restore it later if you lose your phone.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.align(Alignment.Start),
-        )
-
-        Button(
+    BentoCard {
+        SettingsRow(
+            title = "Export backup",
+            subtitle = "Categories and transactions in one file",
+            icon = Icons.Filled.Backup,
+            enabled = !busy,
             onClick = { exportBackup.launch("expenser-backup-${LocalDate.now()}.json") },
+        )
+        RowDivider()
+        SettingsRow(
+            title = "Import backup",
+            subtitle = "Replaces everything in the app",
+            subtitleColor = MaterialTheme.colorScheme.error,
+            icon = Icons.Filled.Restore,
             enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Filled.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("  Export backup")
-        }
-        OutlinedButton(
             onClick = { confirmImport = true },
+        )
+        RowDivider()
+        SettingsRow(
+            title = "Export as CSV",
+            subtitle = "Transactions as a spreadsheet",
+            icon = Icons.Filled.Description,
             enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("  Import backup")
-        }
-        OutlinedButton(
             onClick = { exportCsv.launch("expenser-${LocalDate.now()}.csv") },
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("  Export as CSV")
-        }
+        )
         if (busy) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally).size(24.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 

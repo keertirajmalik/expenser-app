@@ -13,29 +13,49 @@ import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.model.EntryType
 import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.CategoryRuleViolation
+import com.expenser.app.data.repo.TransactionRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.YearMonth
 
-class CategoryViewModel(private val repository: CategoryRepository) : ViewModel() {
+class CategoryViewModel(
+    private val repository: CategoryRepository,
+    transactions: TransactionRepository,
+    /** Global month scope, shared with the dashboard and lists (null = all time). */
+    val selectedMonth: StateFlow<YearMonth?>,
+) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
 
+    /** Type shown; null = all types. */
+    private val _typeFilter = MutableStateFlow<EntryType?>(null)
+    val typeFilter: StateFlow<EntryType?> = _typeFilter
+
+    /** Every category, without the search or type filter: the sheet re-resolves edits from it. */
+    val allCategories: StateFlow<List<CategoryEntity>> =
+        repository.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val categories: StateFlow<List<CategoryEntity>> =
-        combine(repository.observeAll(), _query) { list, query ->
-            val q = query.trim()
-            if (q.isEmpty()) list
-            else list.filter {
-                it.name.contains(q, ignoreCase = true) ||
-                    (it.description?.contains(q, ignoreCase = true) == true)
-            }
+        combine(allCategories, _query, _typeFilter) { list, query, type ->
+            list.filterCategories(query, type)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Amount booked against each category id in the selected month. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val spendByCategory: StateFlow<Map<String, Long>> =
+        selectedMonth.flatMapLatest(transactions::observeTotalsByCategory)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     fun setQuery(query: String) { _query.value = query }
+
+    fun setTypeFilter(type: EntryType?) { _typeFilter.value = type }
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -82,8 +102,25 @@ class CategoryViewModel(private val repository: CategoryRepository) : ViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ExpenserApp
-                CategoryViewModel(app.container.categoryRepository)
+                CategoryViewModel(
+                    app.container.categoryRepository,
+                    app.container.transactionRepository,
+                    app.container.selectedMonth,
+                )
             }
         }
+    }
+}
+
+/** Search by name or description, then keep one type; a null [type] keeps every type. */
+fun List<CategoryEntity>.filterCategories(query: String, type: EntryType?): List<CategoryEntity> {
+    val q = query.trim()
+    return filter { category ->
+        (type == null || category.type == type) &&
+            (
+                q.isEmpty() ||
+                    category.name.contains(q, ignoreCase = true) ||
+                    (category.description?.contains(q, ignoreCase = true) == true)
+                )
     }
 }

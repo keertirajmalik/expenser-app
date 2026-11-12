@@ -1,9 +1,9 @@
 # Expenser (Android) — Context
 
-Offline-first native Android expense tracker. Kotlin + Jetpack Compose + Room.
-Ported from the `expenser` web app (React UI + Go/Postgres server), which stays
-separate. No network, no auth in v1. Single local user; server sync is a future
-possibility, so schema stays sync-friendly.
+Offline-first native Android tracker for expenses, income and investments.
+Kotlin + Jetpack Compose + Room. Ported from the `expenser` web app (React UI +
+Go/Postgres server), which stays separate. No network, no auth. Single local
+user; server sync is a future possibility, so schema stays sync-friendly.
 
 ## Glossary
 
@@ -31,26 +31,56 @@ Fields: `id` (UUID), `name`, `amount`, `category` (FK), `date`, `note?`, `type`,
 
 ### Amount
 A money value stored as **Long minor units** (e.g. `1250` = ₹12.50), 2 decimal
-places. Never a float. Formatted for display as INR / en-IN.
+places. Never a float. Displayed in the **currency** chosen on the Profile screen
+(INR by default), formatted for the device locale. Summary figures and list rows
+drop a zero fraction (`₹45,000`, not `₹45,000.00`); a non-zero one is always shown.
+The currency is a display setting only: amounts are never converted.
 
-### Expense
-A Transaction whose Type is `Expense`. The only Type with UI in v1.
-Income and Investment are schema-ready but have no screens yet.
+### Expense / Income / Investment
+A Transaction whose Type is `Expense`, `Income` or `Investment`. Each has its
+own bottom-navigation tab; the three share one list screen and one view model,
+parameterised by Type.
 
-## Scope (v1)
+### Month scope
+The calendar month every screen is filtered to (the dashboard, the three lists
+and the per-category totals). Shared app-wide, so changing it on one screen
+changes it everywhere. Defaults to the current month and keeps following the
+calendar until the user picks one; "All time" removes the scope. A custom date
+range in a list's filters overrides it for that list only.
 
-Screens (bottom navigation): **Dashboard** (Total Expense card), **Expenses**
-(list + add/edit/delete via bottom sheet), **Categories** (same).
+### Left this month
+The dashboard's headline: income minus expenses minus investments, within the
+**[Month scope](#month-scope)**. Negative means the month is overspent, and the
+dashboard says so ("Over income by …") rather than showing a minus sign.
 
-Deferred: Income & Investment UI, charts (pie/line/bar), Excel import, auth,
-server sync, currency settings.
+## Scope
+
+Bottom navigation: **Dashboard**, **Income**, **Expenses**, **Investments**.
+From the top bar of each: **Categories** and **Profile**.
+
+- **Dashboard:** "Left this month" hero card with an income split bar; Income /
+  Spent / Invested tiles that open their tabs; top expense categories; recent
+  entries.
+- **Lists:** grouped by day with subtotals; search, category chips, date-range
+  and sort filters; add/edit in a bottom sheet; swipe to delete with undo.
+- **Categories:** filter by Type; this month's total per category.
+- **Profile:** name and photo, currency, theme, daily reminder, backup export /
+  import (JSON) and CSV export.
+
+Deferred: Excel import, auth, server sync, charts over time (trends across
+months).
 
 ## Fixed decisions
 
-- Separate repo; appId `com.expenser.app`; minSdk/target 35 (Android 15).
+- Separate repo; appId `com.expenser.app`; minSdk 26 (Android 8.0), targetSdk 36,
+  compileSdk 37.
 - Manual DI (an `AppContainer` on the `Application`). No Hilt.
 - Room with `foreign_keys` ON; UUID `String` primary keys; `amount` as `Long`
   minor units; `date` as ISO `yyyy-MM-dd` `String`.
 - Category delete blocked when in use (SQLite `RESTRICT`).
 - Add/edit via modal bottom sheet; delete from inside the edit sheet.
-- Theme follows system light/dark + Material You dynamic color; no manual toggle.
+- Fixed "Rose" palette in light and dark (no Material You dynamic colour), so the
+  bento layout looks the same on every device. Theme is System / Light / Dark,
+  chosen on the Profile screen and previewed live before saving.
+- Category badge colours are derived from the category id, not stored, so they
+  need no schema column and survive renames.

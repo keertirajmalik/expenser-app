@@ -3,13 +3,17 @@ package com.expenser.app.ui.profile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,9 +21,10 @@ import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,10 +55,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenser.app.ExpenserApp
 import com.expenser.app.data.model.ThemeMode
 import com.expenser.app.ui.common.Avatar
-import com.expenser.app.ui.common.EnumDropdown
+import com.expenser.app.ui.common.BentoCard
+import com.expenser.app.ui.common.FieldShape
+import com.expenser.app.ui.common.RowDivider
 import com.expenser.app.ui.common.SUPPORTED_CURRENCIES
+import com.expenser.app.ui.common.SectionLabel
+import com.expenser.app.ui.common.SegmentedControl
 import com.expenser.app.ui.common.copyImageToInternal
 import com.expenser.app.ui.common.currencyLabel
+import com.expenser.app.ui.common.filledFieldColors
+import com.expenser.app.ui.common.linkColor
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,13 +121,31 @@ fun ProfileScreen(
         }
     }
 
+    val save = {
+        viewModel.save(name, imagePath, currentTheme, selectedCurrency)
+        container.setReminder(reminderEnabled, reminderHour, reminderMinute)
+    }
+    val pickPhoto = {
+        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Profile", fontWeight = FontWeight.SemiBold) },
+                title = { Text("Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = save,
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.textButtonColors(contentColor = linkColor()),
+                    ) {
+                        Text("Save", fontWeight = FontWeight.SemiBold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -130,59 +160,113 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Avatar(name = name, imagePath = imagePath, size = 96.dp)
-            TextButton(onClick = {
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) {
-                Icon(Icons.Filled.PhotoCamera, contentDescription = null)
-                Text("  Change photo")
-            }
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = user?.username ?: "",
-                onValueChange = {},
-                readOnly = true,
-                enabled = false,
-                label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            EnumDropdown(
-                label = "Currency",
-                options = SUPPORTED_CURRENCIES,
-                selected = selectedCurrency,
-                onSelected = { code -> selectedCurrency = code },
-                optionLabel = { currencyLabel(it) },
-            )
-            Text(
-                "Theme",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.align(Alignment.Start),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                ThemeMode.entries.forEach { mode ->
-                    FilterChip(
-                        selected = currentTheme == mode,
-                        onClick = { viewModel.previewTheme(mode) },
-                        label = { Text(mode.name) },
-                        leadingIcon = { Icon(themeIcon(mode), contentDescription = null) },
+                // One tap target for the photo; the camera badge overhangs the circle.
+                Box(
+                    modifier = Modifier.clickable(onClickLabel = "Change photo", onClick = pickPhoto),
+                ) {
+                    Avatar(name = name, imagePath = imagePath, size = 96.dp)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.PhotoCamera,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+                Text(
+                    name.ifBlank { "Your name" },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                user?.username?.let {
+                    Text(
+                        "@$it",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
+            SectionLabel("Account")
+            BentoCard {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    shape = FieldShape,
+                    colors = filledFieldColors(MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                )
+                RowDivider()
+                SettingsRow(
+                    title = "Username",
+                    subtitle = "Can't be changed",
+                    value = user?.username ?: "",
+                )
+            }
+
+            SectionLabel("Preferences", modifier = Modifier.padding(top = 12.dp))
+            BentoCard {
+                Box {
+                    var currencyMenu by remember { mutableStateOf(false) }
+                    SettingsRow(
+                        title = "Currency",
+                        value = currencyLabel(selectedCurrency),
+                        onClick = { currencyMenu = true },
+                    )
+                    DropdownMenu(
+                        expanded = currencyMenu,
+                        onDismissRequest = { currencyMenu = false },
+                        modifier = Modifier.align(Alignment.TopEnd),
+                    ) {
+                        SUPPORTED_CURRENCIES.forEach { code ->
+                            DropdownMenuItem(
+                                text = { Text(currencyLabel(code)) },
+                                onClick = {
+                                    selectedCurrency = code
+                                    currencyMenu = false
+                                },
+                            )
+                        }
+                    }
+                }
+                RowDivider()
+                Column(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Theme", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    SegmentedControl(
+                        options = ThemeMode.entries,
+                        selected = currentTheme,
+                        onSelect = { viewModel.previewTheme(it) },
+                        label = { it.name },
+                        leading = { Icon(themeIcon(it), contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    )
+                }
+            }
+
+            SectionLabel("Daily reminder", modifier = Modifier.padding(top = 12.dp))
             ReminderSection(
                 enabled = reminderEnabled,
                 hour = reminderHour,
@@ -191,15 +275,7 @@ fun ProfileScreen(
                 onTimeChange = { h, m -> reminderHour = h; reminderMinute = m },
             )
 
-            Button(
-                onClick = {
-                    viewModel.save(name, imagePath, currentTheme, selectedCurrency)
-                    container.setReminder(reminderEnabled, reminderHour, reminderMinute)
-                },
-                enabled = name.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Save") }
-
+            SectionLabel("Your data", modifier = Modifier.padding(top = 12.dp))
             BackupSection(snackbarHostState = snackbarHostState)
         }
     }

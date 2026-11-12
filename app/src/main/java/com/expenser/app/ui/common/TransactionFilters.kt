@@ -25,9 +25,13 @@ data class TransactionFilter(
     val sortField: SortField = SortField.Date,
     val sortDirection: SortDirection = SortDirection.Descending,
 ) {
+    /** True when a custom date range overrides the month scope. */
+    val hasDateRange: Boolean
+        get() = start != null || end != null
+
     /** True when anything other than the free-text search narrows the list. */
     val hasActiveFilters: Boolean
-        get() = categoryId != null || start != null || end != null
+        get() = categoryId != null || hasDateRange
 
     val isDefaultSort: Boolean
         get() = sortField == SortField.Date && sortDirection == SortDirection.Descending
@@ -48,7 +52,7 @@ fun List<TransactionListItem>.applyFilter(
     month: YearMonth?,
 ): List<TransactionListItem> {
     val (from, to) = when {
-        filter.start != null || filter.end != null -> filter.start to filter.end
+        filter.hasDateRange -> filter.start to filter.end
         month != null -> month.atDay(1) to month.atEndOfMonth()
         else -> null to null
     }
