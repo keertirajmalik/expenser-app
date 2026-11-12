@@ -57,6 +57,7 @@ import com.expenser.app.ui.common.CategoryBadge
 import com.expenser.app.ui.common.MonthTitleSelector
 import com.expenser.app.ui.common.RowDivider
 import com.expenser.app.ui.common.amountTextColor
+import com.expenser.app.ui.common.entriesLabel
 import com.expenser.app.ui.common.entryTypeTint
 import com.expenser.app.ui.common.formatMoneyShort
 import com.expenser.app.ui.common.isDarkScheme
@@ -241,7 +242,7 @@ private fun RowScope.TypeTile(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                if (count == 1) "1 entry" else "$count entries",
+                entriesLabel(count),
                 style = MaterialTheme.typography.labelMedium,
             )
         }

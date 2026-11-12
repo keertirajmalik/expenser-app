@@ -14,12 +14,12 @@ import com.expenser.app.data.model.EntryType
 import com.expenser.app.data.repo.CategoryRepository
 import com.expenser.app.data.repo.CategoryRuleViolation
 import com.expenser.app.data.repo.TransactionRepository
-import com.expenser.app.ui.common.scopeToMonth
-import com.expenser.app.ui.common.totalMinor
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -48,12 +48,10 @@ class CategoryViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Amount booked against each category id in the selected month. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     val spendByCategory: StateFlow<Map<String, Long>> =
-        combine(transactions.observeAllWithCategory(), selectedMonth) { list, month ->
-            list.scopeToMonth(month)
-                .groupBy { it.transaction.categoryId }
-                .mapValues { (_, rows) -> rows.totalMinor() }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+        selectedMonth.flatMapLatest(transactions::observeTotalsByCategory)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun setQuery(query: String) { _query.value = query }
 

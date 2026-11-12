@@ -7,24 +7,18 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -38,11 +32,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,9 +44,6 @@ import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.profile.ScreenTopActions
 import kotlinx.coroutines.launch
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-
-private val MONTH_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
 
 /**
  * The list UI shared by Expense / Income / Investment. Everything type-specific
@@ -122,17 +111,13 @@ fun TransactionListScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { editingId = null; sheetOpen = true },
-                shape = RoundedCornerShape(18.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add $noun")
-            }
-        },
+        floatingActionButton = { AddFab("Add $noun") { editingId = null; sheetOpen = true } },
     ) { padding ->
+        // Grouping only reads right when rows are in date order; other sorts would
+        // scatter one day across several headers. Once per list change, not per frame.
+        val dayGroups = remember(items, filter.sortField) {
+            if (filter.sortField == SortField.Date) items.groupByDay() else null
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             // Bottom room so the last row can scroll clear of the add button.
@@ -151,7 +136,7 @@ fun TransactionListScreen(
                 TransactionSearchBar(
                     query = filter.query,
                     onQueryChange = viewModel::setQuery,
-                    hasActiveFilters = filter.start != null || filter.end != null || !filter.isDefaultSort,
+                    hasActiveFilters = filter.hasDateRange || !filter.isDefaultSort,
                     onFilterClick = { showFilters = true },
                     placeholder = "Search ${title.lowercase()}",
                     modifier = Modifier.padding(top = 12.dp),
@@ -176,10 +161,8 @@ fun TransactionListScreen(
             }
             if (items.isEmpty()) {
                 item(key = "empty") { EmptyState(emptyMessage(noun, filter, month)) }
-            } else if (filter.sortField == SortField.Date) {
-                // Grouping only reads right when rows are in date order; other sorts
-                // would scatter one day across several headers.
-                items.groupByDay().forEach { group ->
+            } else if (dayGroups != null) {
+                dayGroups.forEach { group ->
                     item(key = "day-${group.date}") {
                         SectionLabel(
                             dayHeaderLabel(group.date),
@@ -244,29 +227,33 @@ private fun LazyListScope.rowsCard(
         item(key = item.transaction.id) {
             val shape = groupedRowShape(isFirst = index == 0, isLast = index == rows.lastIndex)
             SwipeToDeleteBox(onDelete = { onDelete(item) }, shape = shape) {
-                TransactionRow(item, shape, showDivider = index > 0) { onOpen(item) }
+                GroupedListRow(
+                    title = item.transaction.name,
+                    subtitle = item.categoryName,
+                    amountMinor = item.transaction.amountMinor,
+                    badgeName = item.categoryName,
+                    badgeKey = item.transaction.categoryId,
+                    shape = shape,
+                    showDivider = index > 0,
+                ) { onOpen(item) }
             }
         }
     }
 }
 
 private fun summaryLabel(type: EntryType, filter: TransactionFilter, month: YearMonth?): String {
-    val verb = when (type) {
-        EntryType.Expense -> "Spent"
-        EntryType.Income -> "Earned"
-        EntryType.Investment -> "Invested"
-    }
+    val verb = type.verb
     return when {
         filter.query.isNotBlank() || filter.hasActiveFilters -> "$verb, matching filters"
         month == null -> "$verb in total"
         month == YearMonth.now() -> "$verb this month"
-        else -> "$verb in ${month.format(MONTH_LABEL)}"
+        else -> "$verb in ${month.format(MONTH_YEAR)}"
     }
 }
 
 private fun emptyMessage(noun: String, filter: TransactionFilter, month: YearMonth?): String = when {
     filter.query.isNotBlank() || filter.hasActiveFilters -> "No ${noun}s match your search."
-    month != null -> "No ${noun}s in ${month.format(MONTH_LABEL)}.\nTap + to add one."
+    month != null -> "No ${noun}s in ${month.format(MONTH_YEAR)}.\nTap + to add one."
     else -> "No ${noun}s yet.\nTap + to add one."
 }
 
@@ -296,7 +283,7 @@ private fun SummaryCard(
                     )
                 }
                 Text(
-                    if (count == 1) "1 entry" else "$count entries",
+                    entriesLabel(count),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 6.dp),
@@ -327,53 +314,4 @@ private fun CategoryChipRow(
             PillChip(category.name, selected = selected, onClick = { onSelect(if (selected) null else category.id) })
         }
     }
-}
-
-@Composable
-private fun TransactionRow(item: TransactionListItem, shape: Shape, showDivider: Boolean, onClick: () -> Unit) {
-    val txn = item.transaction
-    Surface(onClick = onClick, shape = shape, color = MaterialTheme.colorScheme.surface) {
-        Column {
-            if (showDivider) RowDivider()
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CategoryBadge(item.categoryName, txn.categoryId)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        txn.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        item.categoryName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Text(
-                    formatMoneyShort(txn.amountMinor),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 48.dp),
-    )
 }

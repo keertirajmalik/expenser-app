@@ -22,6 +22,12 @@ val RoseLightMutedFg = Color(0xFF52525B)
 val RoseLightDestructive = Color(0xFFDC2626)
 val RoseLightDestructiveFg = Color(0xFFFAFAFA)
 val RoseLightBorder = Color(0xFFE4E4E7)
+// Material's `outline` is a *component* boundary (switch thumb and border, outlined
+// buttons and chips) and needs 3:1. The shadcn border above is a hairline at 1.3:1, so
+// it maps to `outlineVariant` instead. #71717A is 4.83:1 on white.
+val RoseLightOutline = Color(0xFF71717A)
+// Selected segmented button / time-picker field: one step above the muted fill.
+val RoseLightSelected = Color(0xFFE4E4E7)
 
 // Dark
 val RoseDarkPrimary = Color(0xFFE11D48)
@@ -41,3 +47,6 @@ val RoseDarkMutedFg = Color(0xFFA1A1AA)
 val RoseDarkDestructive = Color(0xFFFB7185)
 val RoseDarkDestructiveFg = Color(0xFF4C0519)
 val RoseDarkBorder = Color(0xFF27272A)
+// 3.7:1 on the #1C1917 card; see RoseLightOutline.
+val RoseDarkOutline = Color(0xFF71717A)
+val RoseDarkSelected = Color(0xFF3F3F46)

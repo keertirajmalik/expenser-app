@@ -4,25 +4,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 /**
@@ -34,31 +33,30 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SwipeToDeleteBox(
     onDelete: () -> Unit,
+    shape: Shape,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
     content: @Composable () -> Unit,
 ) {
-    // Not saveable, unlike the swipe state below: it marks "this composition deleted the
-    // row", so a row restored by Undo (same key, fresh composition) can tell it apart.
-    var deletedHere by remember { mutableStateOf(false) }
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                deletedHere = true
-                onDelete()
-                true
-            } else {
-                false
-            }
-        },
-    )
-    // The swipe state is saveable, and LazyColumn saves it per item key. Undo re-inserts
-    // the row under the same key, so it would come back still dismissed: a red bar with
-    // the row swiped off-screen. Snap it back when that happens.
-    LaunchedEffect(state.currentValue) {
-        if (state.currentValue == SwipeToDismissBoxValue.EndToStart && !deletedHere) {
-            state.snapTo(SwipeToDismissBoxValue.Settled)
-        }
+    val currentOnDelete by rememberUpdatedState(onDelete)
+    val density = LocalDensity.current
+    val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+    // Plain remember, not rememberSwipeToDismissBoxState: that one is saveable, and a
+    // LazyColumn saves it per item key, so a row restored by Undo (same key) would come
+    // back still swiped away. A swipe in progress isn't worth keeping across rotation.
+    val state = remember {
+        SwipeToDismissBoxState(
+            initialValue = SwipeToDismissBoxValue.Settled,
+            density = density,
+            confirmValueChange = { value ->
+                if (value == SwipeToDismissBoxValue.EndToStart) {
+                    currentOnDelete()
+                    true
+                } else {
+                    false
+                }
+            },
+            positionalThreshold = positionalThreshold,
+        )
     }
     SwipeToDismissBox(
         state = state,

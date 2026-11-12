@@ -1,31 +1,22 @@
 package com.expenser.app.ui.category
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -36,24 +27,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.model.EntryType
-import com.expenser.app.ui.common.CategoryBadge
-import com.expenser.app.ui.common.RowDivider
+import com.expenser.app.ui.common.AddFab
+import com.expenser.app.ui.common.EmptyState
+import com.expenser.app.ui.common.GroupedListRow
+import com.expenser.app.ui.common.SearchField
 import com.expenser.app.ui.common.SectionLabel
 import com.expenser.app.ui.common.SegmentedControl
-import com.expenser.app.ui.common.filledFieldColors
-import com.expenser.app.ui.common.formatMoneyShort
 import com.expenser.app.ui.common.groupedRowShape
+import com.expenser.app.ui.common.verb
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -111,39 +98,14 @@ fun CategoryScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { editingId = null; sheetOpen = true },
-                shape = RoundedCornerShape(18.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add category")
-            }
-        },
+        floatingActionButton = { AddFab("Add category") { editingId = null; sheetOpen = true } },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
         ) {
             item(key = "search") {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = viewModel::setQuery,
-                    placeholder = { Text("Search categories") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setQuery("") }) {
-                                Icon(Icons.Filled.Clear, contentDescription = "Clear search")
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = filledFieldColors(MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                SearchField(query, viewModel::setQuery, "Search categories", Modifier.fillMaxWidth())
             }
             item(key = "types") {
                 SegmentedControl(
@@ -152,7 +114,7 @@ fun CategoryScreen(
                     onSelect = { viewModel.setTypeFilter(it.type) },
                     label = { it.label },
                     // On the grey ground the track needs to be a step darker than it.
-                    trackColor = MaterialTheme.colorScheme.outline,
+                    trackColor = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(top = 12.dp),
                 )
             }
@@ -165,23 +127,28 @@ fun CategoryScreen(
             }
             if (categories.isEmpty()) {
                 item(key = "empty") {
-                    Text(
+                    EmptyState(
                         if (query.isNotBlank()) "No categories match your search."
                         else "No categories yet.\nTap + to add one.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                     )
                 }
             } else {
                 itemsIndexed(categories, key = { _, it -> it.id }) { index, category ->
-                    CategoryRow(
-                        category = category,
-                        amountMinor = spend[category.id] ?: 0L,
-                        showType = typeFilter == null,
+                    val amount = spend[category.id] ?: 0L
+                    GroupedListRow(
+                        title = category.name,
+                        // With every type listed, say which one each row is; the type tab
+                        // says it otherwise.
+                        subtitle = listOfNotNull(
+                            category.type.name.takeIf { typeFilter == null },
+                            category.description,
+                        ).joinToString(" · "),
+                        amountMinor = amount,
+                        badgeName = category.name,
+                        badgeKey = category.id,
                         shape = groupedRowShape(isFirst = index == 0, isLast = index == categories.lastIndex),
                         showDivider = index > 0,
+                        amountColor = if (amount == 0L) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     ) {
                         editingId = category.id
                         sheetOpen = true
@@ -225,63 +192,6 @@ private fun spendLabel(type: EntryType?, month: YearMonth?): String {
         month.year == YearMonth.now().year -> "in ${month.format(MONTH_SHORT)}"
         else -> "in ${month.format(MONTH_WITH_YEAR)}"
     }
-    val verb = when (type) {
-        EntryType.Expense -> "Spent"
-        EntryType.Income -> "Earned"
-        EntryType.Investment -> "Invested"
-        null -> "Total"
-    }
+    val verb = type?.verb ?: "Total"
     return if (month == null) "$verb, $period" else "$verb $period"
-}
-
-@Composable
-private fun CategoryRow(
-    category: CategoryEntity,
-    amountMinor: Long,
-    showType: Boolean,
-    shape: Shape,
-    showDivider: Boolean,
-    onClick: () -> Unit,
-) {
-    // With every type listed, say which one each row is; the type tab says it otherwise.
-    val subtitle = listOfNotNull(
-        category.type.name.takeIf { showType },
-        category.description,
-    ).joinToString(" · ")
-    Surface(onClick = onClick, shape = shape, color = MaterialTheme.colorScheme.surface) {
-        Column {
-            if (showDivider) RowDivider()
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CategoryBadge(category.name, category.id, size = 36.dp)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        category.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (subtitle.isNotEmpty()) {
-                        Text(
-                            subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                Text(
-                    formatMoneyShort(amountMinor),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (amountMinor == 0L) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-        }
-    }
 }

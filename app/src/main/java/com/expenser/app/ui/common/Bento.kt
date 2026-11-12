@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,16 +30,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.expenser.app.data.model.EntryType
+import com.expenser.app.ui.theme.LocalDarkTheme
 
 /*
  * Building blocks of the "bento" layout: borderless rounded cards on a grey ground,
@@ -44,10 +49,10 @@ import com.expenser.app.data.model.EntryType
  * with a light and a dark pair so screens never branch on the theme themselves.
  */
 
-/** True when the current scheme is the dark one. */
+/** True when [com.expenser.app.ui.theme.ExpenserTheme] is showing its dark scheme. */
 @Composable
 @ReadOnlyComposable
-fun isDarkScheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
+fun isDarkScheme(): Boolean = LocalDarkTheme.current
 
 /** Background + content colour of a tinted element. */
 @Immutable
@@ -157,13 +162,89 @@ fun CategoryBadge(
 @Composable
 fun BentoCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(20.dp),
-    color: Color = MaterialTheme.colorScheme.surface,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(modifier = modifier.fillMaxWidth(), shape = shape, color = color) {
+    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
         Column(content = content)
     }
+}
+
+/** Corner shape of every filled text field and search box. */
+val FieldShape: Shape = RoundedCornerShape(14.dp)
+
+/** The rose "+" button that adds to the list on screen. */
+@Composable
+fun AddFab(contentDescription: String, onClick: () -> Unit) {
+    FloatingActionButton(onClick = onClick, shape = RoundedCornerShape(18.dp)) {
+        Icon(Icons.Filled.Add, contentDescription = contentDescription)
+    }
+}
+
+/**
+ * One row of a grouped card: badge, title over subtitle, trailing amount. The row is
+ * its own LazyColumn item, shaped by [groupedRowShape] so consecutive rows read as one
+ * card, with a hairline above every row but the first.
+ */
+@Composable
+fun GroupedListRow(
+    title: String,
+    subtitle: String?,
+    amountMinor: Long,
+    badgeName: String,
+    badgeKey: String,
+    shape: Shape,
+    showDivider: Boolean,
+    amountColor: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit,
+) {
+    Surface(onClick = onClick, shape = shape, color = MaterialTheme.colorScheme.surface) {
+        Column {
+            if (showDivider) RowDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CategoryBadge(badgeName, badgeKey)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (!subtitle.isNullOrEmpty()) {
+                        Text(
+                            subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Text(
+                    formatMoneyShort(amountMinor),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = amountColor,
+                )
+            }
+        }
+    }
+}
+
+/** Centred grey message for a list with nothing to show. */
+@Composable
+fun EmptyState(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 48.dp),
+    )
 }
 
 /** Small grey caption above a group of cards, e.g. "Preferences". */
@@ -204,13 +285,15 @@ fun RowDivider() {
  * Shape for one row of a card that is split across several LazyColumn items, so each
  * row can be its own item (swipe-to-delete, stable keys) and still read as one card.
  */
-fun groupedRowShape(isFirst: Boolean, isLast: Boolean, radius: Dp = 16.dp): Shape =
-    RoundedCornerShape(
+fun groupedRowShape(isFirst: Boolean, isLast: Boolean): Shape {
+    val radius = 16.dp
+    return RoundedCornerShape(
         topStart = if (isFirst) radius else 0.dp,
         topEnd = if (isFirst) radius else 0.dp,
         bottomStart = if (isLast) radius else 0.dp,
         bottomEnd = if (isLast) radius else 0.dp,
     )
+}
 
 /** Rounded track of equal-width options with one selected, e.g. All / Expense / Income. */
 @Composable

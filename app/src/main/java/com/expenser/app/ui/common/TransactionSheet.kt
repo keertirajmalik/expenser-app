@@ -66,12 +66,10 @@ import java.time.format.DateTimeFormatter
 private val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM yyyy")
 
-private fun parseOrNull(iso: String): LocalDate? = runCatching { LocalDate.parse(iso) }.getOrNull()
-
 /** LocalDate isn't bundleable; round-trip it through its ISO form. */
 private val LocalDateSaver = Saver<LocalDate, String>(
     save = { it.toString() },
-    restore = ::parseOrNull,
+    restore = ::parseIsoOrNull,
 )
 
 /**
@@ -98,7 +96,7 @@ fun TransactionSheet(
     var date by rememberSaveable(stateSaver = LocalDateSaver) {
         // Same fallback as the list: a row whose date predates the import validation
         // should open on today rather than crashing the sheet.
-        mutableStateOf(editing?.date?.let(::parseOrNull) ?: LocalDate.now())
+        mutableStateOf(editing?.date?.let(::parseIsoOrNull) ?: LocalDate.now())
     }
     var note by rememberSaveable { mutableStateOf(editing?.note ?: "") }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -108,7 +106,6 @@ fun TransactionSheet(
 
     val today = LocalDate.now()
     val fieldColors = filledFieldColors(MaterialTheme.colorScheme.surfaceVariant)
-    val fieldShape = RoundedCornerShape(14.dp)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -138,7 +135,7 @@ fun TransactionSheet(
                 onValueChange = { name = it },
                 label = { Text("Name") },
                 singleLine = true,
-                shape = fieldShape,
+                shape = FieldShape,
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -197,7 +194,7 @@ fun TransactionSheet(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Note (optional)") },
-                shape = fieldShape,
+                shape = FieldShape,
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth(),
             )

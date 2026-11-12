@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -106,18 +104,7 @@ fun ReminderSection(
             subtitleColor = if (blocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             // The whole row toggles, so the target is the row rather than just the switch.
             modifier = Modifier.toggleable(value = enabled, role = Role.Switch, onValueChange = onSwitch),
-            trailing = {
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = null,
-                    // The default off-state thumb and border use `outline` (#E4E4E7 in
-                    // light), which all but vanishes on a white card.
-                    colors = SwitchDefaults.colors(
-                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        uncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-            },
+            trailing = { Switch(checked = enabled, onCheckedChange = null) },
         )
         RowDivider()
         SettingsRow(

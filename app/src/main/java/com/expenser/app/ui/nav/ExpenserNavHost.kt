@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -45,11 +46,22 @@ import com.expenser.app.ui.income.IncomeScreen
 import com.expenser.app.ui.investment.InvestmentScreen
 import com.expenser.app.ui.profile.ProfileScreen
 
-private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
-    Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard),
-    Income("income", "Income", Icons.Filled.Payments),
-    Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong),
-    Investments("investments", "Investments", Icons.AutoMirrored.Filled.TrendingUp),
+/** Bottom-navigation tabs; [type] is the entry type a list tab shows (null for the dashboard). */
+private enum class Destination(val route: String, val label: String, val icon: ImageVector, val type: EntryType?) {
+    Dashboard("dashboard", "Dashboard", Icons.Filled.Dashboard, null),
+    Income("income", "Income", Icons.Filled.Payments, EntryType.Income),
+    Expenses("expenses", "Expenses", Icons.AutoMirrored.Filled.ReceiptLong, EntryType.Expense),
+    Investments("investments", "Investments", Icons.AutoMirrored.Filled.TrendingUp, EntryType.Investment),
+}
+
+/**
+ * Switch tabs and drop any pushed detail screen (categories/profile). No
+ * saveState/restoreState: restoring a tab's back stack could bring a detail screen back
+ * on top, making the tap look like a no-op.
+ */
+private fun NavController.navigateToTab(route: String) = navigate(route) {
+    popUpTo(graph.findStartDestination().id) { inclusive = false }
+    launchSingleTop = true
 }
 
 private const val PROFILE_ROUTE = "profile"
@@ -69,15 +81,7 @@ fun ExpenserNavHost() {
         bottomBar = {
             FloatingNavBar(
                 selectedRoute = { route -> currentDestination?.hierarchy?.any { it.route == route } == true },
-                onSelect = { route ->
-                    // Switch tabs and drop any pushed detail screen (categories/profile).
-                    // No saveState/restoreState: restoring a tab's back stack could bring a
-                    // detail screen back on top, making the tap look like a no-op.
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
+                onSelect = navController::navigateToTab,
             )
         },
     ) { padding ->
@@ -91,17 +95,7 @@ fun ExpenserNavHost() {
         }
         // Same as tapping that type's tab, so the back stack matches a tab switch.
         val openType: (EntryType) -> Unit = remember(navController) {
-            { type ->
-                val route = when (type) {
-                    EntryType.Income -> Destination.Income.route
-                    EntryType.Expense -> Destination.Expenses.route
-                    EntryType.Investment -> Destination.Investments.route
-                }
-                navController.navigate(route) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                    launchSingleTop = true
-                }
-            }
+            { type -> navController.navigateToTab(Destination.entries.first { it.type == type }.route) }
         }
         NavHost(
             navController = navController,

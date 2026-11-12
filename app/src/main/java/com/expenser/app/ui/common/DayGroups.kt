@@ -60,4 +60,5 @@ fun shortDayLabel(iso: String, today: LocalDate = LocalDate.now(), locale: Local
 private fun dayFormatter(date: LocalDate, today: LocalDate, locale: Locale): DateTimeFormatter =
     DateTimeFormatter.ofPattern(if (date.year == today.year) "EEE d MMM" else "EEE d MMM yyyy", locale)
 
-private fun parseIsoOrNull(iso: String): LocalDate? = runCatching { LocalDate.parse(iso) }.getOrNull()
+/** ISO `yyyy-MM-dd` to a date, or null instead of throwing on a malformed value. */
+internal fun parseIsoOrNull(iso: String): LocalDate? = runCatching { LocalDate.parse(iso) }.getOrNull()

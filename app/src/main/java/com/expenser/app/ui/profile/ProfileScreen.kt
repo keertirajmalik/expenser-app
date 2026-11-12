@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -57,6 +56,7 @@ import com.expenser.app.ExpenserApp
 import com.expenser.app.data.model.ThemeMode
 import com.expenser.app.ui.common.Avatar
 import com.expenser.app.ui.common.BentoCard
+import com.expenser.app.ui.common.FieldShape
 import com.expenser.app.ui.common.RowDivider
 import com.expenser.app.ui.common.SUPPORTED_CURRENCIES
 import com.expenser.app.ui.common.SectionLabel
@@ -213,7 +213,7 @@ fun ProfileScreen(
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = FieldShape,
                     colors = filledFieldColors(MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                 )

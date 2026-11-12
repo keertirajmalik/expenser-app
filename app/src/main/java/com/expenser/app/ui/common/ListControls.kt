@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -73,7 +74,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
-private val MONTH_LABEL_LONG: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
 private val RANGE_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
 
 /**
@@ -81,54 +81,28 @@ private val RANGE_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM 
  * that can also choose "All time". Used inside the transaction lists' summary card.
  */
 @Composable
-fun MonthSelector(
-    month: YearMonth?,
-    onChange: (YearMonth?) -> Unit,
-    modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-) {
-    var showPicker by remember { mutableStateOf(false) }
-    Row(
+fun MonthSelector(month: YearMonth?, onChange: (YearMonth?) -> Unit, modifier: Modifier = Modifier) {
+    MonthStepper(
+        month = month,
+        onChange = onChange,
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(containerColor),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = { month?.let { onChange(it.minusMonths(1)) } }, enabled = month != null) {
-            Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous month")
-        }
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) { label, openPicker ->
         Row(
             modifier = Modifier
                 .weight(1f)
                 .height(44.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .clickable(onClickLabel = "Choose month") { showPicker = true },
+                .clickable(onClickLabel = "Choose month", onClick = openPicker),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = month?.format(MONTH_LABEL_LONG) ?: "All time",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
         }
-        IconButton(onClick = { month?.let { onChange(it.plusMonths(1)) } }, enabled = month != null) {
-            Icon(Icons.Filled.ChevronRight, contentDescription = "Next month")
-        }
-    }
-
-    if (showPicker) {
-        MonthPickerDialog(
-            initial = month,
-            onDismiss = { showPicker = false },
-            onPick = {
-                onChange(it)
-                showPicker = false
-            },
-        )
     }
 }
 
@@ -137,26 +111,38 @@ fun MonthSelector(
  * top-bar title, since the month is what the whole screen is about.
  */
 @Composable
-fun MonthTitleSelector(
+fun MonthTitleSelector(month: YearMonth?, onChange: (YearMonth?) -> Unit, modifier: Modifier = Modifier) {
+    MonthStepper(month = month, onChange = onChange, modifier = modifier) { label, openPicker ->
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClickLabel = "Choose month", onClick = openPicker)
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+                .semantics { heading() },
+        )
+    }
+}
+
+/**
+ * Prev / next buttons around a caller-drawn [center], plus the month picker it opens.
+ * The two selectors above differ only in their container and how the label looks.
+ */
+@Composable
+private fun MonthStepper(
     month: YearMonth?,
     onChange: (YearMonth?) -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
+    center: @Composable RowScope.(label: String, openPicker: () -> Unit) -> Unit,
 ) {
     var showPicker by remember { mutableStateOf(false) }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { month?.let { onChange(it.minusMonths(1)) } }, enabled = month != null) {
             Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous month")
         }
-        Text(
-            text = month?.format(MONTH_LABEL_LONG) ?: "All time",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .clickable(onClickLabel = "Choose month") { showPicker = true }
-                .padding(horizontal = 4.dp, vertical = 8.dp)
-                .semantics { heading() },
-        )
+        center(month?.format(MONTH_YEAR) ?: "All time") { showPicker = true }
         IconButton(onClick = { month?.let { onChange(it.plusMonths(1)) } }, enabled = month != null) {
             Icon(Icons.Filled.ChevronRight, contentDescription = "Next month")
         }
@@ -237,38 +223,21 @@ fun TransactionSearchBar(
     onQueryChange: (String) -> Unit,
     hasActiveFilters: Boolean,
     onFilterClick: () -> Unit,
+    placeholder: String,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search",
 ) {
-    val colors = MaterialTheme.colorScheme
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            placeholder = { Text(placeholder) },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Filled.Clear, contentDescription = "Clear search")
-                    }
-                }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            colors = filledFieldColors(colors.surface),
-            modifier = Modifier.weight(1f),
-        )
+        SearchField(query, onQueryChange, placeholder, Modifier.weight(1f))
         BadgedBox(badge = { if (hasActiveFilters) Badge() }) {
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.surface)
+                    .clip(FieldShape)
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable(onClickLabel = "Filters and sort", onClick = onFilterClick),
                 contentAlignment = Alignment.Center,
             ) {
@@ -276,6 +245,28 @@ fun TransactionSearchBar(
             }
         }
     }
+}
+
+/** Filled search box on the grey ground, with a clear button once there is text. */
+@Composable
+fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text(placeholder) },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                }
+            }
+        },
+        singleLine = true,
+        shape = FieldShape,
+        colors = filledFieldColors(MaterialTheme.colorScheme.surface),
+        modifier = modifier,
+    )
 }
 
 /**
@@ -304,8 +295,7 @@ fun ActiveFilterChips(
     onResetSort: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val hasRange = filter.start != null || filter.end != null
-    if (!hasRange && filter.isDefaultSort) return
+    if (!filter.hasDateRange && filter.isDefaultSort) return
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -313,7 +303,7 @@ fun ActiveFilterChips(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (hasRange) {
+        if (filter.hasDateRange) {
             val label = "${filter.start?.format(RANGE_LABEL) ?: "…"} – ${filter.end?.format(RANGE_LABEL) ?: "…"}"
             DismissChip(label, onClearDates)
         }
@@ -374,7 +364,7 @@ fun TransactionFilterSheet(
                             )
                         },
                     )
-                    if (filter.start != null || filter.end != null) {
+                    if (filter.hasDateRange) {
                         TextButton(onClick = { onDateRangeChange(null, null) }) { Text("Clear") }
                     }
                 }
