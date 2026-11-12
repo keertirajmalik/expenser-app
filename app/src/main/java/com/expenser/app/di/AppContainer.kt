@@ -39,7 +39,7 @@ class AppContainer(context: Context) {
         appContext,
         ExpenserDatabase::class.java,
         "expenser.db",
-    ).build()
+    ).addMigrations(*ExpenserDatabase.MIGRATIONS).build()
 
     // Seed-once guard for the single local user.
     private val userMutex = Mutex()

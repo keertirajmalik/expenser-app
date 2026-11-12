@@ -26,6 +26,21 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      # The build re-exports the Room schema to app/schemas/<version>.json. If that
+      # differs from what is committed, an entity changed: either the version wasn't
+      # bumped (existing installs then crash on launch - this shipped once, in v2.0.0)
+      # or the new version's JSON wasn't committed.
+      - name: Room schema matches the committed one
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain -- app/schemas)
+          if [ -n "$changed" ]; then
+            echo "::error::The Room schema changed but app/schemas doesn't match. Bump the version in ExpenserDatabase, add a Migration to ExpenserDatabase.MIGRATIONS, and commit the new app/schemas/.../<version>.json. Never edit an existing <version>.json: installed apps already have that schema."
+            echo "$changed"
+            git diff -- app/schemas | head -80
+            exit 1
+          fi
+
       # Separate step so a compile failure and a test failure are told apart
       # at a glance in the checks UI.
       - name: Unit tests
