@@ -1,21 +1,28 @@
 package com.expenser.app.data.db
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** A version bump without a matching Migration crashes existing installs on launch. */
+/**
+ * A version bump without a matching Migration crashes existing installs on launch. Every
+ * step k -> k+1 needs its own migration; shortcuts like 1 -> 3 don't replace them.
+ */
 class MigrationCoverageTest {
 
-    private val schemaDir = File("schemas/${ExpenserDatabase::class.qualifiedName}")
-
-    private fun exportedVersions(): List<Int> =
-        schemaDir.listFiles().orEmpty().mapNotNull { it.name.removeSuffix(".json").toIntOrNull() }.sorted()
+    private fun exportedVersions(): List<Int> {
+        val root = System.getProperty("roomSchemaDir")
+        assertNotNull("roomSchemaDir not set; run through Gradle", root)
+        val dir = File(root!!, ExpenserDatabase::class.qualifiedName!!)
+        val versions = dir.listFiles().orEmpty().mapNotNull { it.name.removeSuffix(".json").toIntOrNull() }.sorted()
+        assertTrue("no exported schemas in ${dir.absolutePath}", versions.isNotEmpty())
+        return versions
+    }
 
     @Test fun exported_schema_versions_have_no_gaps() {
         val versions = exportedVersions()
-        assertTrue("no exported schemas in ${schemaDir.absolutePath}", versions.isNotEmpty())
         assertEquals((1..versions.last()).toList(), versions)
     }
 

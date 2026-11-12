@@ -71,9 +71,15 @@ android {
     }
 }
 
+// Room writes schemas/<version>.json here; committed so migrations can diff against it.
+val roomSchemaDir = "$projectDir/schemas"
+
 ksp {
-    // Room writes schemas/<version>.json here; committed so migrations can diff against it.
-    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.schemaLocation", roomSchemaDir)
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("roomSchemaDir", roomSchemaDir)
 }
 
 kotlin {
