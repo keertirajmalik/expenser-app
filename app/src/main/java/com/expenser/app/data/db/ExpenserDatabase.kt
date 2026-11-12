@@ -12,13 +12,7 @@ import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.db.entity.TransactionEntity
 import com.expenser.app.data.db.entity.UserEntity
 
-/**
- * Schema is exported to `app/schemas` (see the `room.schemaLocation` KSP arg). Room
- * validates the live database against the compiled schema's hash on open, so any change
- * here needs both a version bump and a migration or every existing install fails to
- * start with "Room cannot verify the data integrity". Add the migration to
- * [ExpenserDatabase.MIGRATIONS]; AppContainer registers that list.
- */
+/** Any schema change needs a version bump and a migration in [MIGRATIONS], or existing installs crash on open. */
 @Database(
     entities = [UserEntity::class, CategoryEntity::class, TransactionEntity::class],
     version = 2,
@@ -31,13 +25,7 @@ abstract class ExpenserDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
 
     companion object {
-        /**
-         * 1 -> 2: drop `index_categories_name`. Commit da80753 removed `Index("name")` from
-         * [CategoryEntity] but left the version at 1, so every install from v1.0.0 crashed
-         * on launch after updating to v2.0.0. Two kinds of version-1 database exist: those
-         * from v1.0.0, which still have the index, and fresh installs of v2.0.0, which
-         * never got it. IF EXISTS makes the one statement right for both.
-         */
+        // v1.0.0 databases still have this index; fresh v2.0.0 ones don't, hence IF EXISTS.
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP INDEX IF EXISTS `index_categories_name`")

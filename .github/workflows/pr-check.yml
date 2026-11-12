@@ -26,10 +26,7 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
-      # The build re-exports the Room schema to app/schemas/<version>.json. If that
-      # differs from what is committed, an entity changed: either the version wasn't
-      # bumped (existing installs then crash on launch - this shipped once, in v2.0.0)
-      # or the new version's JSON wasn't committed.
+      # The build re-exports the Room schema; a diff means an entity changed without a version bump.
       - name: Room schema matches the committed one
         run: |
           set -euo pipefail

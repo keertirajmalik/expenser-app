@@ -5,15 +5,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * Every schema version Room has exported must be reachable from version 1 one step at a
- * time. A version bump without a matching Migration crashes every existing install on
- * launch ("A migration from N to N+1 was required but not found"), just as a schema
- * change without a version bump did in v2.0.0.
- */
+/** A version bump without a matching Migration crashes existing installs on launch. */
 class MigrationCoverageTest {
 
-    // Unit tests run with the module directory as the working directory.
     private val schemaDir = File("schemas/${ExpenserDatabase::class.qualifiedName}")
 
     private fun exportedVersions(): List<Int> =
