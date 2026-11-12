@@ -1,26 +1,30 @@
 package com.expenser.app.ui.common
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -34,32 +38,23 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.expenser.app.data.db.dao.TransactionListItem
+import com.expenser.app.data.db.entity.CategoryEntity
 import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.profile.ScreenTopActions
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
-private val DISPLAY: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val MONTH_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
-
-/**
- * "2026-09-03" -> "03 Sep 2026", falling back to the raw text instead of throwing.
- *
- * BackupCodec rejects non-ISO dates on import, so this should be unreachable. It stays
- * because the failure it guards is disproportionate: the date is formatted inside a
- * LazyColumn row, so one malformed value - from an older build, a hand-edited database -
- * took down the whole list and every restart with it, with no way back from inside the app.
- */
-private fun displayDate(iso: String): String =
-    runCatching { LocalDate.parse(iso).format(DISPLAY) }.getOrDefault(iso)
 
 /**
  * The list UI shared by Expense / Income / Investment. Everything type-specific
@@ -84,7 +79,6 @@ fun TransactionListScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val accent = entryTypeColor(type)
 
     // Saveable, so a rotation doesn't close the sheet out from under a half-typed entry.
     // Keyed by row id and re-resolved from `items`, which avoids a Saver for the entity.
@@ -99,10 +93,28 @@ fun TransactionListScreen(
         }
     }
 
+    val onDelete: (TransactionListItem) -> Unit = { item ->
+        val deleted = item.transaction
+        viewModel.delete(deleted)
+        scope.launch {
+            val res = snackbarHostState.showSnackbar(
+                message = "${noun.replaceFirstChar { it.uppercase() }} deleted",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short,
+            )
+            if (res == SnackbarResult.ActionPerformed) viewModel.restore(deleted)
+        }
+    }
+    val onOpen: (TransactionListItem) -> Unit = { item ->
+        editingId = item.transaction.id
+        sheetOpen = true
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.SemiBold) },
+                title = { Text(title, fontWeight = FontWeight.Bold) },
                 actions = { ScreenTopActions(onCategoriesClick, onProfileClick) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -111,54 +123,75 @@ fun TransactionListScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { editingId = null; sheetOpen = true }) {
+            FloatingActionButton(
+                onClick = { editingId = null; sheetOpen = true },
+                shape = RoundedCornerShape(18.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
                 Icon(Icons.Filled.Add, contentDescription = "Add $noun")
             }
         },
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            // Bottom room so the last row can scroll clear of the add button.
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
         ) {
-            MonthSelector(month = month, onChange = viewModel::selectMonth)
-            TransactionSearchBar(
-                query = filter.query,
-                onQueryChange = viewModel::setQuery,
-                hasActiveFilters = filter.hasActiveFilters || !filter.isDefaultSort,
-                onFilterClick = { showFilters = true },
-            )
-            ActiveFilterChips(
-                filter = filter,
-                categories = categories,
-                onClearCategory = { viewModel.setCategory(null) },
-                onClearDates = { viewModel.setDateRange(null, null) },
-                onResetSort = { viewModel.setSort(SortField.Date, SortDirection.Descending) },
-            )
-            TotalBar(total, accent)
-            if (items.isEmpty()) {
-                EmptyState(emptyMessage(noun, filter, month))
-            } else {
-                LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
-                    items(items, key = { it.transaction.id }) { item ->
-                        SwipeToDeleteBox(onDelete = {
-                            val deleted = item.transaction
-                            viewModel.delete(deleted)
-                            scope.launch {
-                                val res = snackbarHostState.showSnackbar(
-                                    message = "${noun.replaceFirstChar { it.uppercase() }} deleted",
-                                    actionLabel = "Undo",
-                                    duration = SnackbarDuration.Short,
-                                )
-                                if (res == SnackbarResult.ActionPerformed) viewModel.restore(deleted)
-                            }
-                        }) {
-                            TransactionRow(item, accent) {
-                                editingId = item.transaction.id
-                                sheetOpen = true
-                            }
-                        }
-                    }
+            item(key = "summary") {
+                SummaryCard(
+                    label = summaryLabel(type, filter, month),
+                    totalMinor = total,
+                    count = items.size,
+                    month = month,
+                    onMonthChange = viewModel::selectMonth,
+                )
+            }
+            item(key = "search") {
+                TransactionSearchBar(
+                    query = filter.query,
+                    onQueryChange = viewModel::setQuery,
+                    hasActiveFilters = filter.start != null || filter.end != null || !filter.isDefaultSort,
+                    onFilterClick = { showFilters = true },
+                    placeholder = "Search ${title.lowercase()}",
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            if (categories.isNotEmpty()) {
+                item(key = "chips") {
+                    CategoryChipRow(
+                        categories = categories,
+                        selectedId = filter.categoryId,
+                        onSelect = viewModel::setCategory,
+                    )
                 }
+            }
+            item(key = "active") {
+                ActiveFilterChips(
+                    filter = filter,
+                    onClearDates = { viewModel.setDateRange(null, null) },
+                    onResetSort = { viewModel.setSort(SortField.Date, SortDirection.Descending) },
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            if (items.isEmpty()) {
+                item(key = "empty") { EmptyState(emptyMessage(noun, filter, month)) }
+            } else if (filter.sortField == SortField.Date) {
+                // Grouping only reads right when rows are in date order; other sorts
+                // would scatter one day across several headers.
+                items.groupByDay().forEach { group ->
+                    item(key = "day-${group.date}") {
+                        SectionLabel(
+                            dayHeaderLabel(group.date),
+                            trailing = formatMoneyShort(group.totalMinor),
+                            modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                        )
+                    }
+                    rowsCard(group.items, onOpen, onDelete)
+                }
+            } else {
+                item(key = "sorted-gap") { SectionLabel("Sorted by ${filter.sortField.label.lowercase()}", Modifier.padding(top = 8.dp)) }
+                rowsCard(items, onOpen, onDelete)
             }
         }
     }
@@ -201,6 +234,36 @@ fun TransactionListScreen(
     }
 }
 
+/** One card's worth of rows; each row is its own item so it keeps a stable key and can be swiped. */
+private fun LazyListScope.rowsCard(
+    rows: List<TransactionListItem>,
+    onOpen: (TransactionListItem) -> Unit,
+    onDelete: (TransactionListItem) -> Unit,
+) {
+    rows.forEachIndexed { index, item ->
+        item(key = item.transaction.id) {
+            val shape = groupedRowShape(isFirst = index == 0, isLast = index == rows.lastIndex)
+            SwipeToDeleteBox(onDelete = { onDelete(item) }, shape = shape) {
+                TransactionRow(item, shape, showDivider = index > 0) { onOpen(item) }
+            }
+        }
+    }
+}
+
+private fun summaryLabel(type: EntryType, filter: TransactionFilter, month: YearMonth?): String {
+    val verb = when (type) {
+        EntryType.Expense -> "Spent"
+        EntryType.Income -> "Earned"
+        EntryType.Investment -> "Invested"
+    }
+    return when {
+        filter.query.isNotBlank() || filter.hasActiveFilters -> "$verb, matching filters"
+        month == null -> "$verb in total"
+        month == YearMonth.now() -> "$verb this month"
+        else -> "$verb in ${month.format(MONTH_LABEL)}"
+    }
+}
+
 private fun emptyMessage(noun: String, filter: TransactionFilter, month: YearMonth?): String = when {
     filter.query.isNotBlank() || filter.hasActiveFilters -> "No ${noun}s match your search."
     month != null -> "No ${noun}s in ${month.format(MONTH_LABEL)}.\nTap + to add one."
@@ -208,69 +271,109 @@ private fun emptyMessage(noun: String, filter: TransactionFilter, month: YearMon
 }
 
 @Composable
-private fun TotalBar(totalMinor: Long, accent: Color) {
+private fun SummaryCard(
+    label: String,
+    totalMinor: Long,
+    count: Int,
+    month: YearMonth?,
+    onMonthChange: (YearMonth?) -> Unit,
+) {
+    BentoCard {
+        Column(modifier = Modifier.padding(12.dp)) {
+            MonthSelector(month = month, onChange = onMonthChange)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 14.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        formatMoneyShort(totalMinor),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    if (count == 1) "1 entry" else "$count entries",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+/** "All" plus one pill per category; one tap filters the list to that category. */
+@Composable
+private fun CategoryChipRow(
+    categories: List<CategoryEntity>,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            "Total",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            formatMoney(totalMinor),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = accent,
-        )
+        PillChip("All", selected = selectedId == null, onClick = { onSelect(null) })
+        categories.forEach { category ->
+            val selected = category.id == selectedId
+            // Tapping the selected chip again clears it, like toggling a filter off.
+            PillChip(category.name, selected = selected, onClick = { onSelect(if (selected) null else category.id) })
+        }
     }
 }
 
 @Composable
-private fun TransactionRow(item: TransactionListItem, accent: Color, onClick: () -> Unit) {
+private fun TransactionRow(item: TransactionListItem, shape: Shape, showDivider: Boolean, onClick: () -> Unit) {
     val txn = item.transaction
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(txn.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Surface(onClick = onClick, shape = shape, color = MaterialTheme.colorScheme.surface) {
+        Column {
+            if (showDivider) RowDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CategoryBadge(item.categoryName, txn.categoryId)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        txn.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        item.categoryName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
-                    "${item.categoryName} · ${displayDate(txn.date)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    formatMoneyShort(txn.amountMinor),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
-            Text(
-                formatMoney(txn.amountMinor),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = accent,
-            )
         }
     }
 }
 
 @Composable
 private fun EmptyState(text: String) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 48.dp),
+    )
 }

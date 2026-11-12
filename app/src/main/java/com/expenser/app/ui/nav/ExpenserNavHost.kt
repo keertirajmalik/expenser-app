@@ -1,7 +1,6 @@
 package com.expenser.app.ui.nav
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +37,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.expenser.app.data.model.EntryType
 import com.expenser.app.ui.category.CategoryScreen
 import com.expenser.app.ui.dashboard.DashboardScreen
 import com.expenser.app.ui.expense.ExpenseScreen
@@ -89,12 +89,26 @@ fun ExpenserNavHost() {
         val openCategories: () -> Unit = remember(navController) {
             { navController.navigate(CATEGORIES_ROUTE) { launchSingleTop = true } }
         }
+        // Same as tapping that type's tab, so the back stack matches a tab switch.
+        val openType: (EntryType) -> Unit = remember(navController) {
+            { type ->
+                val route = when (type) {
+                    EntryType.Income -> Destination.Income.route
+                    EntryType.Expense -> Destination.Expenses.route
+                    EntryType.Investment -> Destination.Investments.route
+                }
+                navController.navigate(route) {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
         NavHost(
             navController = navController,
             startDestination = Destination.Dashboard.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Destination.Dashboard.route) { DashboardScreen(openCategories, openProfile) }
+            composable(Destination.Dashboard.route) { DashboardScreen(openCategories, openProfile, openType) }
             composable(Destination.Income.route) { IncomeScreen(openCategories, openProfile) }
             composable(Destination.Expenses.route) { ExpenseScreen(openCategories, openProfile) }
             composable(Destination.Investments.route) { InvestmentScreen(openCategories, openProfile) }
@@ -119,9 +133,7 @@ private fun FloatingNavBar(
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
             shadowElevation = 10.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
             Row(
                 modifier = Modifier.padding(6.dp),

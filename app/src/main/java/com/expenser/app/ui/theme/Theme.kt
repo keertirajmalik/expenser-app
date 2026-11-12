@@ -20,7 +20,8 @@ private val LightColors = lightColorScheme(
     surfaceVariant = RoseLightMuted,
     onSurfaceVariant = RoseLightMutedFg,
     surfaceContainer = RoseLightMuted,
-    surfaceContainerLow = RoseLightBackground,
+    // Bottom sheets paint with surfaceContainerLow: keep them white over the grey ground.
+    surfaceContainerLow = RoseLightCard,
     surfaceContainerHigh = RoseLightSecondary,
     error = RoseLightDestructive,
     onError = RoseLightDestructiveFg,
@@ -42,7 +43,8 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = RoseDarkMuted,
     onSurfaceVariant = RoseDarkMutedFg,
     surfaceContainer = RoseDarkCard,
-    surfaceContainerLow = RoseDarkBackground,
+    // Bottom sheets paint with surfaceContainerLow: lift them off the near-black ground.
+    surfaceContainerLow = RoseDarkCard,
     surfaceContainerHigh = RoseDarkSecondary,
     error = RoseDarkDestructive,
     onError = RoseDarkDestructiveFg,

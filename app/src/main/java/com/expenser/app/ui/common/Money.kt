@@ -42,6 +42,35 @@ private fun currencyFormat(): NumberFormat {
 fun formatMoney(amountMinor: Long): String =
     currencyFormat().format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
 
+// Whole-unit variant of the cached format, rebuilt only when that one is.
+private var wholeFormatBase: NumberFormat? = null
+private var wholeFormat: NumberFormat? = null
+
+/**
+ * Like [formatMoney], but drops the fraction when it is zero: 4500000L -> "₹45,000",
+ * 1250L -> "₹12.50". For summary figures and list rows, where ".00" on every amount is
+ * noise and costs width the bento tiles don't have. Never rounds: a non-zero fraction
+ * is always shown in full.
+ */
+fun formatMoneyShort(amountMinor: Long): String {
+    if (amountMinor % 100 != 0L) return formatMoney(amountMinor)
+    val base = currencyFormat()
+    val whole = wholeFormat?.takeIf { wholeFormatBase === base }
+        ?: (base.clone() as NumberFormat).apply {
+            minimumFractionDigits = 0
+            maximumFractionDigits = 0
+        }.also {
+            wholeFormatBase = base
+            wholeFormat = it
+        }
+    return whole.format(BigDecimal.valueOf(amountMinor).movePointLeft(2))
+}
+
+/** The selected currency's symbol in the current locale, e.g. "₹", for an amount field's prefix. */
+fun currencySymbol(): String =
+    runCatching { Currency.getInstance(currencyCodeState.value).getSymbol(Locale.getDefault()) }
+        .getOrDefault(currencyCodeState.value)
+
 /** 1250L -> "12.5" — plain editable text for an amount field (no symbol, no trailing zeros). */
 fun minorToInput(amountMinor: Long): String =
     BigDecimal.valueOf(amountMinor).movePointLeft(2).stripTrailingZeros().toPlainString()
